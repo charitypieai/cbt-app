@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const C = {
   bg:"#0F0F0F",sur:"#1A1A1A",bor:"#2E2E2E",
@@ -11,12 +11,57 @@ const SCOL={"New Brief":C.lime,"In Progress":C.blue,"Needs Clarification":C.oran
 const SNAMES=["","Ownership","Objective","Scope","Audience","Message","References","Direction","Guardrails","Criteria","Deliverables"];
 const LIKE_OPTS=["First-frame clarity","Pacing","Visual hierarchy","Tone","Emotional payoff","Simplicity","Other"];
 
+/* ─── CAMPAIGN TYPE OPTIONS ─── */
+const CAMPAIGN_TYPE_OPTS = [
+  { value:"Growth Campaign", desc:"Always‑on or time‑bound marketing designed to drive usage, adoption, or behavior change." },
+  { value:"ABS", desc:"Targeted campaign tailored to specific accounts, segments, or customer cohorts." },
+  { value:"Brand Campaign", desc:"Top‑of‑funnel work focused on brand perception, narrative, or emotional connection." },
+  { value:"Product Launch / Release", desc:"Creative supporting a new product, feature, or major update going GA." },
+  { value:"Seasonal / Moment‑Based Campaign", desc:"Time‑bound work tied to calendar moments like tax season, back‑to‑school, holidays." },
+  { value:"Lifecycle / Retention Campaign", desc:"Messaging aimed at onboarding, re‑engagement, or increasing depth of usage." },
+  { value:"Experiment / Test‑and‑Learn", desc:"Creative designed for learning, iteration, or performance testing over polish." },
+  { value:"Integrated Campaign", desc:"Cross‑channel system spanning multiple placements, formats, and phases." },
+  { value:"Internal / Enablement Campaign", desc:"Creative supporting internal teams, sales enablement, or education." },
+  { value:"Other", desc:"" },
+];
+
+/* ─── EXISTING ASSETS LOGIC ─── */
+// Show "Existing assets" section if campaign type is one of these:
+const SHOW_ASSETS_TYPES = ["ABS","Lifecycle / Retention Campaign","Integrated Campaign","Iteration on existing work","Support existing campaign"];
+// Optional toggle for these:
+const OPTIONAL_ASSETS_TYPES = ["Seasonal / Moment‑Based Campaign"];
+// Do NOT show for these:
+const HIDE_ASSETS_TYPES = ["Brand Campaign","Product Launch / Release","Experiment / Test‑and‑Learn","Internal / Enablement Campaign"];
+
+function showExistingAssets(campaignType) {
+  if (!campaignType || campaignType === "Other") return null;
+  if (SHOW_ASSETS_TYPES.includes(campaignType)) return "required";
+  if (OPTIONAL_ASSETS_TYPES.includes(campaignType)) return "optional";
+  if (HIDE_ASSETS_TYPES.includes(campaignType)) return null;
+  return null;
+}
+
+/* ─── SUCCESS CRITERIA OPTIONS ─── */
+const SUCCESS_CRITERIA_OPTS = [
+  { value:"Clear value proposition", desc:"The audience immediately understands what this is and why it matters." },
+  { value:"On‑brand and recognizable", desc:"Feels unmistakably Microsoft / aligned to the intended brand system." },
+  { value:"Audience‑relevant", desc:"Resonates with the defined audience's needs, context, and mindset." },
+  { value:"Simple and scannable", desc:"Works quickly; no over‑explaining." },
+  { value:"Distinctive / ownable", desc:"Doesn't look generic or interchangeable with competitors." },
+  { value:"Emotionally engaging", desc:"Creates confidence, momentum, curiosity, or reassurance." },
+  { value:"Product truth is clear", desc:"Accurately reflects what the product actually does." },
+  { value:"Flexible across placements", desc:"Can scale across formats, channels, or variations." },
+  { value:"Supports the larger campaign/system", desc:"Fits into a broader narrative or design system." },
+  { value:"Other", desc:"" },
+];
+
 const FIELDS=[
   {id:"requestorName",s:1,q:"Who is submitting this brief?",t:"text",ph:"Your full name",req:true},
-  {id:"campaignName",s:1,q:"Campaign / project name",t:"text",ph:"e.g. Surface Pro Q3 Launch",req:true},
-  {id:"creativeDecisionMaker",s:1,q:"Primary point of contact for clarifications",hint:"Design will route questions here",t:"text",ph:"Name or role",req:true},
+  {id:"requestorEmail",s:1,q:"Email address",t:"text",ph:"your@email.com",req:true},
+  {id:"campaignName",s:1,q:"Campaign / Project Name",t:"text",ph:"e.g. Surface Pro Q3 Launch",req:true},
+  {id:"campaignType",s:1,q:"Campaign Type",t:"campaignType",req:true},
   {id:"businessObjective",s:2,q:"Primary business objective?",t:"multi",req:true,opts:["Increase understanding","Change perception","Drive action","Support existing campaign","Other"],otherKey:"businessObjectiveOther"},
-  {id:"problemStatement",s:2,q:"What specific problem must this creative solve?",t:"textarea",ph:"What gap, barrier, or tension are we resolving?",req:true},
+  {id:"problemStatement",s:2,q:"The Creative Request",t:"textarea",ph:"What gap, barrier, or tension are we resolving?",req:true},
   {id:"decisionType",s:3,q:"What decision is needed from Design?",t:"single",req:true,opts:["Exploratory concepts","Single recommended direction","Iteration on existing work","Execution of pre-approved direction"]},
   {id:"conceptCount",s:3,q:"How many concepts are expected?",t:"single",req:true,opts:["1 strong direction","2-3 distinct approaches","Iterations on 1 existing concept","Align in review"]},
   {id:"primaryAudience",s:4,q:"Who is the primary audience?",t:"text",ph:"e.g. SMB IT decision-makers, 35-54",req:true},
@@ -27,7 +72,7 @@ const FIELDS=[
   {id:"openForExploration",s:7,q:"What is open for creative exploration?",t:"multi",req:true,opts:["Visual approach","Tone","Narrative","Metaphor vs. literal","Other"],otherKey:"openForExplorationOther"},
   {id:"finalMustInclude",s:8,q:"What must appear in the final design?",t:"multi",req:true,opts:["Logo","Product name","CTA","Legal","Accessibility","Other"],otherKey:"finalMustIncludeOther"},
   {id:"mustAvoid",s:8,q:"What is explicitly off-limits?",t:"textarea",ph:"Styles, references, language to avoid...",req:true},
-  {id:"successCriteria",s:9,q:"How will success be evaluated?",t:"multi",req:true,opts:["Clear value proposition","On-brand","Audience-relevant","Simple and scannable","Distinctive","Emotionally engaging","Product truth is clear","Flexible across placements","Other"],otherKey:"successCriteriaOther"},
+  {id:"successCriteria",s:9,q:"How will success be evaluated?",t:"successCriteria",req:true},
   {id:"assetTypes",s:10,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther"},
   {id:"staticSizes",s:10,q:"Static sizes",t:"text",ph:"e.g. 1080x1080, 1200x628",req:true,showIf:f=>f.assetTypes?.includes("Static")},
   {id:"videoSizes",s:10,q:"Video sizes and durations",t:"text",ph:"e.g. 9:16 at 15s",req:true,showIf:f=>f.assetTypes?.includes("Video")},
@@ -35,101 +80,50 @@ const FIELDS=[
 ];
 
 const PLATFORMS=["Instagram","TikTok","X","YouTube","Other"];
-const mkRef=()=>({id:Date.now()+Math.random(),type:"url",url:"",file:null,likeBecause:"",avoid:""});
+const mkRef=()=>({id:Date.now()+Math.random(),type:"url",url:"",file:null,fileDataUrl:null,likeBecause:"",avoid:""});
+
+/* ─── PERSISTENT STORAGE (localStorage) ─── */
+function loadBriefs(){
+  try{const d=localStorage.getItem("cbt_briefs");return d?JSON.parse(d):[];}catch{return [];}
+}
+function saveBriefs(briefs){
+  try{localStorage.setItem("cbt_briefs",JSON.stringify(briefs));}catch{}
+}
 
 /* ─── AI ELIGIBILITY SCORING ─── */
 function computeAIEligibility(form){
   let score=0;
   const reasons=[];
   const blocks=[];
-
-  // Decision & Scope: +2 for execution/iteration
-  if(form.decisionType==="Execution of pre-approved direction"||form.decisionType==="Iteration on existing work"){
-    score+=2; reasons.push("Execution / iteration scope");
-  }
-
-  // Source of truth: +2 for approved docs or existing campaign
-  if(form.productTruthSource==="Approved product documentation"||form.productTruthSource==="Existing campaign / system"){
-    score+=2; reasons.push("Approved source of truth");
-  }
-
-  // Asset predictability: +2 for static/carousel/simple
+  if(form.decisionType==="Execution of pre-approved direction"||form.decisionType==="Iteration on existing work"){score+=2;reasons.push("Execution / iteration scope");}
+  if(form.productTruthSource==="Approved product documentation"||form.productTruthSource==="Existing campaign / system"){score+=2;reasons.push("Approved source of truth");}
   const assets=form.assetTypes||[];
   const hasSimple=assets.some(a=>["Static","Carousel"].includes(a));
-  const hasVideo=assets.includes("Video");
   const hasSystem=assets.includes("System");
-  if(hasSimple&&!hasSystem){
-    score+=2; reasons.push("Predictable asset types");
-  }
-
-  // Reference examples: +1
+  if(hasSimple&&!hasSystem){score+=2;reasons.push("Predictable asset types");}
   const refs=form.references||[];
-  if(refs.length>0&&refs.some(r=>r.url||r.file)){
-    score+=1; reasons.push("Reference examples provided");
-  }
-
-  // Locked elements: +1 if not empty / not just "Other"
+  if(refs.length>0&&refs.some(r=>r.url||r.file)){score+=1;reasons.push("Reference examples provided");}
   const locked=form.lockedElements||[];
   const meaningfulLocked=locked.filter(l=>l!=="Other");
-  if(meaningfulLocked.length>0){
-    score+=1; reasons.push("Locked elements present");
-  }
-
-  // NEGATIVE: Exploratory narrative: -2
+  if(meaningfulLocked.length>0){score+=1;reasons.push("Locked elements present");}
   const openFor=form.openForExploration||[];
-  if(openFor.includes("Narrative")&&openFor.includes("Metaphor vs. literal")){
-    score-=2; blocks.push("Narrative + Metaphor exploration");
-  }
-
-  // NEGATIVE: Source of truth = Other: -3
-  if(form.productTruthSource==="Other"){
-    score-=3; blocks.push("Source of truth is unverified");
-  }
-
-  // NEGATIVE: Legal/sensitive constraints: -3
+  if(openFor.includes("Narrative")&&openFor.includes("Metaphor vs. literal")){score-=2;blocks.push("Narrative + Metaphor exploration");}
+  if(form.productTruthSource==="Other"){score-=3;blocks.push("Source of truth is unverified");}
   const mustAvoid=(form.mustAvoid||"").toLowerCase();
-  const mustInclude=form.finalMustInclude||[];
-  if(mustAvoid.includes("legal")||mustAvoid.includes("regulatory")||mustAvoid.includes("compliance")||mustAvoid.includes("reputational")){
-    score-=3; blocks.push("Legal / regulatory constraints");
-  }
-
-  // NEGATIVE: System-level with no refs
-  if(hasSystem&&refs.length===0){
-    score-=2; blocks.push("System design without references");
-  }
-
-  // Determine level
-  let level, label, tasks;
-  if(score>=5){
-    level="full";
-    label="Full AI Assist";
-    tasks=["Layout options","Draft copy","Variant sizes"];
-  } else if(score>=2){
-    level="partial";
-    label="Partial AI Assist";
-    tasks=["Concept directions","Mood boards","Message framing","Copy variants"];
-  } else if(score>=0){
-    // Check guarded conditions
+  if(mustAvoid.includes("legal")||mustAvoid.includes("regulatory")||mustAvoid.includes("compliance")||mustAvoid.includes("reputational")){score-=3;blocks.push("Legal / regulatory constraints");}
+  if(hasSystem&&refs.length===0){score-=2;blocks.push("System design without references");}
+  let level,label,tasks;
+  if(score>=5){level="full";label="Full AI Assist";tasks=["Layout options","Draft copy","Variant sizes"];}
+  else if(score>=2){level="partial";label="Partial AI Assist";tasks=["Concept directions","Mood boards","Message framing","Copy variants"];}
+  else if(score>=0){
     const msgTypes=form.messageTypes||[];
     const hasEmotional=msgTypes.includes("Emotional / cultural");
     const hasRefs=refs.length>0;
     const hasLockedBrand=locked.includes("Brand system")||locked.includes("CTA");
-    if(hasEmotional&&hasRefs&&hasLockedBrand){
-      level="guarded";
-      label="AI-Assist with Guardrails";
-      tasks=["Copy drafts","Structural layouts","Option expansion"];
-    } else {
-      level="blocked";
-      label="Human-Only Design";
-      tasks=[];
-    }
-  } else {
-    level="blocked";
-    label="Human-Only Design";
-    tasks=[];
-  }
-
-  return {score,level,label,tasks,reasons,blocks};
+    if(hasEmotional&&hasRefs&&hasLockedBrand){level="guarded";label="AI-Assist with Guardrails";tasks=["Copy drafts","Structural layouts","Option expansion"];}
+    else{level="blocked";label="Human-Only Design";tasks=[];}
+  } else {level="blocked";label="Human-Only Design";tasks=[];}
+  return{score,level,label,tasks,reasons,blocks};
 }
 
 const AI_BADGE_COLORS={
@@ -142,12 +136,8 @@ const AI_BADGE_COLORS={
 function AIBadge({eligibility,compact}){
   if(!eligibility)return null;
   const style=AI_BADGE_COLORS[eligibility.level];
-  if(compact){
-    return <span title={eligibility.label} style={{display:"inline-flex",alignItems:"center",gap:"4px",fontSize:"14px",cursor:"default"}}>
-      {style.icon}
-    </span>;
-  }
-  return <div style={{background:style.bg,border:`1.5px solid ${style.border}`,borderRadius:"8px",padding:"16px 20px",marginBottom:"20px"}}>
+  if(compact)return<span title={eligibility.label} style={{display:"inline-flex",alignItems:"center",gap:"4px",fontSize:"14px",cursor:"default"}}>{style.icon}</span>;
+  return<div style={{background:style.bg,border:`1.5px solid ${style.border}`,borderRadius:"8px",padding:"16px 20px",marginBottom:"20px"}}>
     <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"8px"}}>
       <span style={{fontSize:"24px"}}>{style.icon}</span>
       <div>
@@ -155,30 +145,18 @@ function AIBadge({eligibility,compact}){
         <div style={{fontSize:"11px",color:style.text,opacity:0.8,fontFamily:"monospace"}}>Score: {eligibility.score}</div>
       </div>
     </div>
-    {eligibility.level!=="blocked"?(
-      <div>
-        <div style={{fontSize:"10px",fontWeight:"700",color:style.text,opacity:0.7,fontFamily:"monospace",marginBottom:"4px"}}>AI-ELIGIBLE TASKS</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>
-          {eligibility.tasks.map(t=><span key={t} style={{background:"rgba(255,255,255,0.25)",color:style.text,padding:"3px 8px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{t}</span>)}
-        </div>
-      </div>
-    ):(
-      <div style={{fontSize:"12px",color:style.text,opacity:0.9}}>
-        This request requires human-led design.
-      </div>
-    )}
-    {eligibility.reasons.length>0&&<div style={{marginTop:"8px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>
-      Signals: {eligibility.reasons.join(" · ")}
-    </div>}
-    {eligibility.blocks.length>0&&<div style={{marginTop:"4px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>
-      Blockers: {eligibility.blocks.join(" · ")}
-    </div>}
+    {eligibility.level!=="blocked"?(<div>
+      <div style={{fontSize:"10px",fontWeight:"700",color:style.text,opacity:0.7,fontFamily:"monospace",marginBottom:"4px"}}>AI-ELIGIBLE TASKS</div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>{eligibility.tasks.map(t=><span key={t} style={{background:"rgba(255,255,255,0.25)",color:style.text,padding:"3px 8px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{t}</span>)}</div>
+    </div>):(<div style={{fontSize:"12px",color:style.text,opacity:0.9}}>This request requires human-led design.</div>)}
+    {eligibility.reasons.length>0&&<div style={{marginTop:"8px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>Signals: {eligibility.reasons.join(" · ")}</div>}
+    {eligibility.blocks.length>0&&<div style={{marginTop:"4px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>Blockers: {eligibility.blocks.join(" · ")}</div>}
   </div>;
 }
 
 function AIEligibilityMessage({eligibility}){
   if(!eligibility||eligibility.level==="blocked")return null;
-  return <div style={{background:"#1a1a00",border:`1px solid ${C.gold}44`,borderRadius:"6px",padding:"14px 18px",marginBottom:"20px"}}>
+  return<div style={{background:"#1a1a00",border:`1px solid ${C.gold}44`,borderRadius:"6px",padding:"14px 18px",marginBottom:"20px"}}>
     <div style={{fontSize:"13px",color:C.gold,fontWeight:"600",marginBottom:"4px"}}>
       {eligibility.level==="full"?"⚡ This request qualifies for faster turnaround using AI-assisted workflows.":
        eligibility.level==="partial"?"⚡ This request qualifies for AI-assisted concepting and drafting.":
@@ -188,8 +166,7 @@ function AIEligibilityMessage({eligibility}){
   </div>;
 }
 
-/* ─── END AI ELIGIBILITY ─── */
-
+/* ─── WIZARD HOOK ─── */
 function useWizard(){
   const [form,setForm]=useState({});
   const [sec,setSec]=useState(1);
@@ -205,6 +182,8 @@ function useWizard(){
       const v=form[f.id];
       if(f.t==="multi"){if(!Array.isArray(v)||!v.length)return false;if(f.otherKey&&v.includes("Other")&&!form[f.otherKey]?.trim())return false;}
       else if(f.t==="single"){if(!v)return false;if(f.otherKey&&v==="Other"&&!form[f.otherKey]?.trim())return false;}
+      else if(f.t==="campaignType"){if(!form.campaignType)return false;if(form.campaignType==="Other"&&!form.campaignTypeOther?.trim())return false;}
+      else if(f.t==="successCriteria"){const sc=form.successCriteria||[];if(!sc.length)return false;if(sc.includes("Other")&&!form.successCriteriaOther?.trim())return false;}
       else if(f.t==="refs"||f.t==="channels"){}
       else if(!v?.toString().trim())return false;
     }
@@ -220,35 +199,85 @@ const ul=(has)=>({width:"100%",border:"none",borderBottom:`2px solid ${has?C.blu
 const Ql=({q,req})=><div style={{fontSize:"18px",fontWeight:"700",color:C.w,marginBottom:"12px",lineHeight:"1.3"}}>{q}{req&&<span style={{color:C.lime,marginLeft:"4px"}}>*</span>}</div>;
 const Qh=({hint})=>hint?<div style={{fontSize:"12px",color:C.g5,marginBottom:"10px",borderLeft:`2px solid ${C.blue}`,paddingLeft:"10px"}}>{hint}</div>:null;
 
-function OptBtn({label,sel,onClick,multi}){
-  return <button type="button" onClick={onClick} style={{display:"flex",alignItems:"center",gap:"14px",padding:"13px 18px",border:`1.5px solid ${sel?C.lime:C.bor}`,borderRadius:"4px",background:sel?"#D1FF9810":"transparent",cursor:"pointer",width:"100%",textAlign:"left",marginBottom:"7px"}}>
-    <div style={{width:"18px",height:"18px",borderRadius:multi?"3px":"50%",flexShrink:0,border:`2px solid ${sel?C.lime:C.g5}`,background:sel?C.lime:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+function OptBtn({label,desc,sel,onClick,multi}){
+  return<button type="button" onClick={onClick} style={{display:"flex",alignItems:"flex-start",gap:"14px",padding:"13px 18px",border:`1.5px solid ${sel?C.lime:C.bor}`,borderRadius:"4px",background:sel?"#D1FF9810":"transparent",cursor:"pointer",width:"100%",textAlign:"left",marginBottom:"7px"}}>
+    <div style={{width:"18px",height:"18px",borderRadius:multi?"3px":"50%",flexShrink:0,border:`2px solid ${sel?C.lime:C.g5}`,background:sel?C.lime:"transparent",display:"flex",alignItems:"center",justifyContent:"center",marginTop:"2px"}}>
       {sel&&<span style={{color:"#0F0F0F",fontSize:"11px",fontWeight:"900"}}>v</span>}
     </div>
-    <span style={{fontSize:"15px",color:sel?C.lime:C.w,fontWeight:sel?"600":"400"}}>{label}</span>
+    <div>
+      <span style={{fontSize:"15px",color:sel?C.lime:C.w,fontWeight:sel?"600":"400"}}>{label}</span>
+      {desc&&<div style={{fontSize:"12px",color:C.g5,fontStyle:"italic",marginTop:"3px",lineHeight:"1.4"}}>{desc}</div>}
+    </div>
   </button>;
 }
 
 function InlOther({v,on,textarea}){
-  if(textarea){
-    return <div style={{marginLeft:"28px",marginBottom:"6px"}}>
-      <textarea value={v||""} onChange={e=>on(e.target.value)} placeholder="Please specify..."
-        rows={3}
-        style={{width:"100%",background:"#1a1a1a",border:`1.5px solid ${C.lime}55`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"8px 12px",outline:"none",resize:"vertical",lineHeight:"1.6"}}/>
-    </div>;
-  }
-  return <div style={{marginLeft:"28px",marginBottom:"6px"}}>
-    <input value={v||""} onChange={e=>on(e.target.value)} placeholder="Please specify..."
-      style={{width:"100%",background:"#1a1a1a",border:`1.5px solid ${C.lime}55`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"8px 12px",outline:"none"}}/>
+  if(textarea){return<div style={{marginLeft:"28px",marginBottom:"6px"}}><textarea value={v||""} onChange={e=>on(e.target.value)} placeholder="Please specify..." rows={3} style={{width:"100%",background:"#1a1a1a",border:`1.5px solid ${C.lime}55`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"8px 12px",outline:"none",resize:"vertical",lineHeight:"1.6"}}/></div>;}
+  return<div style={{marginLeft:"28px",marginBottom:"6px"}}><input value={v||""} onChange={e=>on(e.target.value)} placeholder="Please specify..." style={{width:"100%",background:"#1a1a1a",border:`1.5px solid ${C.lime}55`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"8px 12px",outline:"none"}}/></div>;
+}
+
+/* ─── CAMPAIGN TYPE FIELD ─── */
+function CampaignTypeField({form,set}){
+  const v=form.campaignType;
+  const assetsMode=showExistingAssets(v);
+  const assetsVal=form.existingAssetsAvail;
+
+  return<div>
+    <Ql q="Campaign Type" req={true}/>
+    {CAMPAIGN_TYPE_OPTS.map(o=><div key={o.value}>
+      <OptBtn label={o.value} desc={o.desc} sel={v===o.value} onClick={()=>set("campaignType",o.value)} multi={false}/>
+      {o.value==="Other"&&v==="Other"&&<InlOther v={form.campaignTypeOther} on={val=>set("campaignTypeOther",val)} textarea={false}/>}
+    </div>)}
+
+    {/* Existing Assets — conditional section */}
+    {(assetsMode==="required"||assetsMode==="optional")&&(
+      <div style={{marginTop:"24px",background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"20px"}}>
+        <div style={{fontSize:"11px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:"14px"}}>
+          {assetsMode==="optional"?"EXISTING ASSETS (OPTIONAL)":"EXISTING ASSETS"}
+        </div>
+        <div style={{fontSize:"15px",fontWeight:"600",color:C.w,marginBottom:"10px"}}>Existing assets available?<span style={{color:C.lime,marginLeft:"4px"}}>*</span></div>
+        {["Yes — required to upload or link","No — starting net new"].map(opt=><OptBtn key={opt} label={opt} sel={assetsVal===opt} onClick={()=>set("existingAssetsAvail",opt)} multi={false}/>)}
+        {assetsVal==="Yes — required to upload or link"&&<div style={{marginTop:"16px",display:"flex",flexDirection:"column",gap:"14px"}}>
+          <div>
+            <div style={{fontSize:"11px",color:C.g5,fontFamily:"monospace",marginBottom:"6px"}}>UPLOAD OR LINK TO EXISTING ASSETS <span style={{color:C.lime}}>*</span></div>
+            <input value={form.existingAssetsUrl||""} onChange={e=>set("existingAssetsUrl",e.target.value)} placeholder="https://..." style={{...ul(!!form.existingAssetsUrl),fontSize:"13px",marginBottom:"8px"}}/>
+            <label style={{display:"flex",alignItems:"center",gap:"8px",border:`1.5px dashed ${form.existingAssetsFile?C.lime:C.bor}`,borderRadius:"3px",padding:"10px",cursor:"pointer"}}>
+              <span style={{fontSize:"12px",color:form.existingAssetsFile?C.lime:C.g3}}>{form.existingAssetsFile?form.existingAssetsFile.name:"Or click to upload a file"}</span>
+              <input type="file" onChange={e=>{if(e.target.files[0])set("existingAssetsFile",e.target.files[0]);}} style={{display:"none"}}/>
+            </label>
+          </div>
+          <div>
+            <div style={{fontSize:"11px",color:C.g5,fontFamily:"monospace",marginBottom:"6px"}}>WHAT SHOULD DESIGN UNDERSTAND FROM THESE ASSETS? <span style={{color:C.lime}}>*</span></div>
+            <input value={form.existingAssetsNotes||""} onChange={e=>set("existingAssetsNotes",e.target.value)} placeholder="What's working, what's not, or what must be respected." style={ul(!!form.existingAssetsNotes)}/>
+          </div>
+        </div>}
+      </div>
+    )}
   </div>;
 }
 
+/* ─── SUCCESS CRITERIA FIELD ─── */
+function SuccessCriteriaField({form,set}){
+  const arr=Array.isArray(form.successCriteria)?form.successCriteria:[];
+  const tog=opt=>{const next=arr.includes(opt)?arr.filter(o=>o!==opt):[...arr,opt];set("successCriteria",next);};
+  return<div>
+    <Ql q="How will success be evaluated?" req={true}/>
+    {SUCCESS_CRITERIA_OPTS.map(o=><div key={o.value}>
+      <OptBtn label={o.value} desc={o.desc} sel={arr.includes(o.value)} onClick={()=>tog(o.value)} multi={true}/>
+      {o.value==="Other"&&arr.includes("Other")&&<InlOther v={form.successCriteriaOther} on={val=>set("successCriteriaOther",val)} textarea={false}/>}
+    </div>)}
+  </div>;
+}
+
+/* ─── REFS FIELD ─── */
 function RefsField({form,set}){
   const refs=form.references||[];
   const add=()=>set("references",[...refs,mkRef()]);
   const upd=(id,p)=>set("references",refs.map(r=>r.id===id?{...r,...p}:r));
   const del=(id)=>set("references",refs.filter(r=>r.id!==id));
-  return <div>
+  const [expanded,setExpanded]=useState(null);
+
+  return<div>
     <Ql q="Reference examples" req={false}/>
     <Qh hint="Optional. Add URLs or file uploads with notes on what you like."/>
     {refs.map((ref,i)=><div key={ref.id} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"4px",padding:"12px",marginBottom:"8px"}}>
@@ -262,11 +291,18 @@ function RefsField({form,set}){
       {ref.type==="url"&&<input value={ref.url} onChange={e=>upd(ref.id,{url:e.target.value})} placeholder="https://..." style={{...ul(!!ref.url),fontSize:"13px",marginBottom:"8px"}}/>}
       {ref.type==="file"&&<label style={{display:"flex",alignItems:"center",gap:"8px",border:`1.5px dashed ${ref.file?C.lime:C.bor}`,borderRadius:"3px",padding:"10px",cursor:"pointer",marginBottom:"8px"}}>
         <span style={{fontSize:"12px",color:ref.file?C.lime:C.g3}}>{ref.file?ref.file.name:"Click to upload (max 10MB)"}</span>
-        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.mp4,.pptx" onChange={e=>{if(e.target.files[0])upd(ref.id,{file:e.target.files[0]});}} style={{display:"none"}}/>
+        <input type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.mp4,.pptx" onChange={e=>{
+          if(e.target.files[0]){
+            const file=e.target.files[0];
+            const reader=new FileReader();
+            reader.onload=ev=>upd(ref.id,{file,fileDataUrl:ev.target.result});
+            reader.readAsDataURL(file);
+          }
+        }} style={{display:"none"}}/>
       </label>}
       <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
         <div>
-          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>I LIKE THIS BECAUSE... <span style={{color:C.lime}}>*</span></div>
+          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>I LIKES THIS BECAUSE... <span style={{color:C.lime}}>*</span></div>
           <textarea value={ref.likeBecause||""} onChange={e=>upd(ref.id,{likeBecause:e.target.value})} placeholder="What draws you to this example..." rows={2} style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none",resize:"none"}}/>
         </div>
         <div>
@@ -284,7 +320,7 @@ function ChField({form,set}){
   const add=p=>set("channels2",{...ch,[p]:[...ch[p],""]});
   const upd=(p,i,v)=>{const a=[...ch[p]];a[i]=v;set("channels2",{...ch,[p]:a});};
   const del=(p,i)=>set("channels2",{...ch,[p]:ch[p].filter((_,j)=>j!==i)});
-  return <div>
+  return<div>
     <Ql q="Which channels will this run on?" req={true}/>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginTop:"6px"}}>
       {PLATFORMS.map(p=><div key={p} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"4px",padding:"10px"}}>
@@ -310,155 +346,108 @@ function Field({f,form,set}){
   if(f.t==="textarea")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/><textarea value={v||""} onChange={e=>setV(e.target.value)} placeholder={f.ph} rows={3} style={{...ul(!!v),resize:"vertical",display:"block",lineHeight:"1.6",paddingTop:"8px"}}/></>;
   if(f.t==="single")return<><Ql q={f.q} req={f.req}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={v===o} onClick={()=>setV(o)} multi={false}/>{o==="Other"&&v==="Other"&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;
   if(f.t==="multi"){const arr=Array.isArray(v)?v:[];return<><Ql q={f.q} req={f.req}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={arr.includes(o)} onClick={()=>tog(o)} multi={true}/>{o==="Other"&&arr.includes("Other")&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;}
+  if(f.t==="campaignType")return<CampaignTypeField form={form} set={set}/>;
+  if(f.t==="successCriteria")return<SuccessCriteriaField form={form} set={set}/>;
   if(f.t==="refs")return<RefsField form={form} set={set}/>;
   if(f.t==="channels")return<ChField form={form} set={set}/>;
   return null;
 }
 
+/* ─── BRIEF ME (print/PDF popup) ─── */
 function openBriefMeTab(brief){
   const refs=brief.references||[];
   const objs=Array.isArray(brief.businessObjective)?brief.businessObjective:[brief.businessObjective].filter(Boolean);
 
   const refCards=refs.map((r,i)=>{
-    const imgSection = r.type==="url" && r.url
-      ? `<div style="background:#f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:16px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;">
-           <img src="https://api.microlink.io/?url=${encodeURIComponent(r.url)}&screenshot=true&meta=false&embed=screenshot.url" 
-                style="width:100%;height:100%;object-fit:cover;border-radius:8px;" 
-                onerror="this.parentElement.innerHTML='<a href=\\'${r.url.replace(/'/g,"&#39;")}\\'  target=\\'_blank\\' style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;text-decoration:none;color:#0078D4;font-size:13px;font-family:monospace;padding:16px;text-align:center;word-break:break-all;\\'>${r.url}</a>'"/>
-         </div>`
-      : r.file ? `<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:8px;padding:24px;margin-bottom:16px;display:flex;align-items:center;gap:12px;aspect-ratio:16/9;justify-content:center;">
-           <span style="font-size:40px;">📎</span><span style="color:#D1FF98;font-family:monospace;font-size:13px;">${r.file.name||"Uploaded file"}</span>
-         </div>` : "";
-
-    return `
-      <div style="break-inside:avoid;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);margin-bottom:28px;">
-        <div style="padding:20px 24px 0;">${imgSection}</div>
-        <div style="padding:16px 24px 24px;">
-          <div style="font-size:11px;color:#999;font-family:monospace;letter-spacing:0.1em;margin-bottom:10px;">REFERENCE ${i+1}</div>
-          ${r.likeBecause?`<div style="margin-bottom:10px;"><div style="font-size:10px;color:#999;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">I LIKE THIS BECAUSE</div><p style="font-size:14px;color:#333;line-height:1.6;margin:0;">${r.likeBecause}</p></div>`:""}
-          ${r.avoid?`<div><div style="font-size:10px;color:#FF6B6B;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">DO NOT COPY</div><p style="font-size:13px;color:#666;line-height:1.6;margin:0;">${r.avoid}</p></div>`:""}
-          ${r.url?`<a href="${r.url}" target="_blank" style="display:inline-block;margin-top:12px;font-size:11px;color:#0078D4;font-family:monospace;word-break:break-all;">${r.url}</a>`:""}
-        </div>
+    let mediaSection="";
+    if(r.type==="file"&&r.fileDataUrl){
+      const isImg=/\.(png|jpg|jpeg|gif|webp)/i.test(r.file?.name||"");
+      mediaSection=isImg
+        ?`<div style="border-radius:8px;overflow:hidden;margin-bottom:16px;cursor:pointer;" onclick="document.getElementById('img-expand-${i}').style.display='flex'"><img src="${r.fileDataUrl}" style="width:100%;border-radius:8px;"/></div>
+           <div id="img-expand-${i}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;cursor:pointer;" onclick="this.style.display='none'"><img src="${r.fileDataUrl}" style="max-width:90%;max-height:90%;border-radius:8px;"/></div>`
+        :`<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:8px;padding:24px;margin-bottom:16px;display:flex;align-items:center;gap:12px;aspect-ratio:16/9;justify-content:center;"><span style="font-size:40px;">📎</span><span style="color:#D1FF98;font-family:monospace;font-size:13px;">${r.file?.name||"Uploaded file"}</span></div>`;
+    } else if(r.type==="url"&&r.url){
+      mediaSection=`<div style="background:#f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:16px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;">
+        <img src="https://api.microlink.io/?url=${encodeURIComponent(r.url)}&screenshot=true&meta=false&embed=screenshot.url" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<a href=\\'${r.url.replace(/'/g,"&#39;")}\\'target=\\'_blank\\' style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;text-decoration:none;color:#0078D4;font-size:13px;font-family:monospace;padding:16px;text-align:center;word-break:break-all;\\'>${r.url}</a>'"/>
       </div>`;
+    }
+    return`<div style="break-inside:avoid;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);margin-bottom:28px;">
+      <div style="padding:20px 24px 0;">${mediaSection}</div>
+      <div style="padding:16px 24px 24px;">
+        <div style="font-size:11px;color:#999;font-family:monospace;letter-spacing:0.1em;margin-bottom:10px;">REFERENCE ${i+1}</div>
+        ${r.likeBecause?`<div style="margin-bottom:10px;"><div style="font-size:10px;color:#999;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">I LIKES THIS BECAUSE</div><p style="font-size:14px;color:#333;line-height:1.6;margin:0;">${r.likeBecause}</p></div>`:""}
+        ${r.avoid?`<div><div style="font-size:10px;color:#FF6B6B;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">DO NOT COPY</div><p style="font-size:13px;color:#666;line-height:1.6;margin:0;">${r.avoid}</p></div>`:""}
+        ${r.url?`<a href="${r.url}" target="_blank" style="display:inline-block;margin-top:12px;font-size:11px;color:#0078D4;font-family:monospace;word-break:break-all;">${r.url}</a>`:""}
+      </div>
+    </div>`;
   }).join("");
 
   const locked=(brief.lockedElements||[]).map(e=>{
-    const label=e==="Product positioning"&&brief.lockedElementsOther?"Other: "+brief.lockedElementsOther:e==="Other"&&brief.lockedElementsOther?brief.lockedElementsOther:e;
-    return `<div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:8px;padding:10px 14px;font-size:13px;color:#cc4444;margin-bottom:6px;">🔒 ${label}</div>`;
+    const label=e==="Other"&&brief.lockedElementsOther?brief.lockedElementsOther:e;
+    return`<div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:8px;padding:10px 14px;font-size:13px;color:#cc4444;margin-bottom:6px;">🔒 ${label}</div>`;
   }).join("");
   const open=(brief.openForExploration||[]).map(e=>{
     const label=e==="Other"&&brief.openForExplorationOther?brief.openForExplorationOther:e;
-    return `<div style="background:#f0fff4;border:1px solid #b2f5c8;border-radius:8px;padding:10px 14px;font-size:13px;color:#2d7d4f;margin-bottom:6px;">✦ ${label}</div>`;
+    return`<div style="background:#f0fff4;border:1px solid #b2f5c8;border-radius:8px;padding:10px 14px;font-size:13px;color:#2d7d4f;margin-bottom:6px;">✦ ${label}</div>`;
   }).join("");
   const criteria=(brief.successCriteria||[]).map(s=>`<div style="background:#f5f5ff;border:1px solid #d0d0ff;border-radius:8px;padding:10px 14px;font-size:13px;color:#5555cc;margin-bottom:6px;">${s}</div>`).join("");
   const assets=(brief.assetTypes||[]).map(a=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;font-family:monospace;">${a}</span>`).join(" ");
   const objTags=objs.map(o=>`<span style="background:#D1FF9820;border:1px solid #D1FF9866;color:#2a6a00;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;">${o}</span>`).join(" ");
-
-  // AI eligibility for Brief Me
   const aiEl=computeAIEligibility(brief);
   const aiBadgeColors={full:"#FFD700",partial:"#FFB300",guarded:"#FF8C00",blocked:"#FF4444"};
   const aiBadgeIcons={full:"🏆",partial:"🏆",guarded:"⚠️",blocked:"🛑"};
-  const aiSection=`
-    <div style="background:${aiEl.level==="blocked"?"#fff0f0":"#fffde7"};border:1.5px solid ${aiBadgeColors[aiEl.level]};border-radius:16px;padding:24px;margin-bottom:24px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <span style="font-size:28px;">${aiBadgeIcons[aiEl.level]}</span>
-        <div>
-          <div style="font-size:16px;font-weight:800;color:#1a1a1a;">${aiEl.label}</div>
-          <div style="font-size:11px;color:#999;font-family:monospace;">Score: ${aiEl.score}</div>
-        </div>
-      </div>
-      ${aiEl.level!=="blocked"?`
-        <div style="font-size:13px;color:#333;margin-bottom:8px;">This request qualifies for faster turnaround using AI-assisted workflows. Design will review all outputs.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">${aiEl.tasks.map(t=>`<span style="background:${aiBadgeColors[aiEl.level]}33;border:1px solid ${aiBadgeColors[aiEl.level]};color:#1a1a1a;padding:4px 10px;border-radius:20px;font-size:11px;font-family:monospace;">${t}</span>`).join("")}</div>
-      `:`<div style="font-size:13px;color:#551a1a;">This request requires human-led design.</div>`}
-    </div>`;
+  const aiSection=`<div style="background:${aiEl.level==="blocked"?"#fff0f0":"#fffde7"};border:1.5px solid ${aiBadgeColors[aiEl.level]};border-radius:16px;padding:24px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:28px;">${aiBadgeIcons[aiEl.level]}</span>
+      <div><div style="font-size:16px;font-weight:800;color:#1a1a1a;">${aiEl.label}</div><div style="font-size:11px;color:#999;font-family:monospace;">Score: ${aiEl.score}</div></div>
+    </div>
+    ${aiEl.level!=="blocked"?`<div style="font-size:13px;color:#333;margin-bottom:8px;">This request qualifies for AI-assisted workflows. Design will review all outputs.</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${aiEl.tasks.map(t=>`<span style="background:${aiBadgeColors[aiEl.level]}33;border:1px solid ${aiBadgeColors[aiEl.level]};color:#1a1a1a;padding:4px 10px;border-radius:20px;font-size:11px;font-family:monospace;">${t}</span>`).join("")}</div>`:`<div style="font-size:13px;color:#551a1a;">This request requires human-led design.</div>`}
+  </div>`;
 
-  const html=`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${brief.campaignName} — Brief Me</title>
+  const html=`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${brief.campaignName} — Brief</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'DM Sans',sans-serif;background:#F4F3EF;color:#1a1a1a;-webkit-print-color-adjust:exact;}
-  .page{max-width:900px;margin:0 auto;padding:40px 32px 80px;}
-  .pill{display:inline-block;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:600;}
-  @media print{.no-print{display:none!important;}body{background:white;}}
-</style>
-</head>
-<body>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'DM Sans',sans-serif;background:#F4F3EF;color:#1a1a1a;-webkit-print-color-adjust:exact;}.page{max-width:900px;margin:0 auto;padding:40px 32px 80px;}@media print{.no-print{display:none!important;}body{background:white;}}</style>
+</head><body>
 <div class="no-print" style="background:#0F0F0F;padding:12px 32px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;">
-  <span style="color:#D1FF98;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;">BRIEF ME — ${brief.campaignName}</span>
+  <span style="color:#D1FF98;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;">${brief.campaignName}</span>
   <button onclick="window.print()" style="background:#D1FF98;color:#0F0F0F;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;font-weight:700;font-size:12px;font-family:'DM Mono',monospace;">DOWNLOAD PDF</button>
 </div>
 <div class="page">
-
-  <!-- HERO -->
   <div style="background:linear-gradient(135deg,#0F0F0F 0%,#0d2340 100%);border-radius:24px;padding:56px 52px;margin-bottom:32px;position:relative;overflow:hidden;">
     <div style="position:absolute;top:-60px;right:-60px;width:280px;height:280px;background:#D1FF9812;border-radius:50%;"></div>
-    <div style="position:absolute;bottom:-40px;left:-40px;width:180px;height:180px;background:#0078D408;border-radius:50%;"></div>
     <div style="position:relative;">
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${objTags}</div>
       <h1 style="font-size:clamp(32px,5vw,52px);font-weight:800;color:white;line-height:1.1;letter-spacing:-0.02em;margin-bottom:28px;">${brief.campaignName}</h1>
       <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-left:4px solid #0078D4;border-radius:0 12px 12px 0;padding:20px 24px;">
-        <div style="font-size:10px;color:#50A8FF;font-family:'DM Mono',monospace;letter-spacing:0.14em;margin-bottom:8px;">THE CREATIVE PROBLEM</div>
+        <div style="font-size:10px;color:#50A8FF;font-family:'DM Mono',monospace;letter-spacing:0.14em;margin-bottom:8px;">THE CREATIVE REQUEST</div>
         <p style="font-size:18px;color:rgba(255,255,255,0.92);line-height:1.7;font-weight:400;">${brief.problemStatement||""}</p>
       </div>
     </div>
   </div>
-
-  <!-- AI ELIGIBILITY -->
   ${aiSection}
-
-  <!-- STATS ROW -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
-    ${[["DECISION TYPE",brief.decisionType,"#0078D4"],["CONCEPTS EXPECTED",brief.conceptCount,"#D1FF98"],["PRODUCT TRUTH SOURCE",brief.productTruthSource==="Other"?brief.productTruthOther:brief.productTruthSource,"#FF8C00"]].map(([l,v,c])=>`
-    <div style="background:white;border-radius:16px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">${l}</div>
-      <div style="font-size:15px;font-weight:700;color:${c};line-height:1.3;">${v||"—"}</div>
-    </div>`).join("")}
+    ${[["REQUESTOR",brief.requestorName,"#D1FF98"],["CAMPAIGN TYPE",brief.campaignType||"—","#0078D4"],["DECISION TYPE",brief.decisionType,"#FF8C00"]].map(([l,v,c])=>`<div style="background:white;border-radius:16px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06);"><div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">${l}</div><div style="font-size:15px;font-weight:700;color:${c};line-height:1.3;">${v||"—"}</div></div>`).join("")}
   </div>
-
-  <!-- AUDIENCE -->
   <div style="background:white;border-radius:20px;padding:36px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee;">AUDIENCE</div>
-    <div style="margin-bottom:0">
-      <div style="background:linear-gradient(135deg,#D1FF9815,#D1FF9830);border:1px solid #D1FF9866;border-radius:12px;padding:20px;">
-        <div style="font-size:10px;color:#2a6a00;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">PRIMARY</div>
-        <div style="font-size:18px;font-weight:700;color:#1a1a1a;">${brief.primaryAudience||"—"}</div>
-      </div>
+    <div style="background:linear-gradient(135deg,#D1FF9815,#D1FF9830);border:1px solid #D1FF9866;border-radius:12px;padding:20px;">
+      <div style="font-size:10px;color:#2a6a00;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">PRIMARY</div>
+      <div style="font-size:18px;font-weight:700;color:#1a1a1a;">${brief.primaryAudience||"—"}</div>
     </div>
   </div>
-
-  <!-- MESSAGE -->
   <div style="background:white;border-radius:20px;padding:36px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
     <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee;">MESSAGE</div>
-    ${(brief.messageTypes||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:0;">${(brief.messageTypes||[]).map(t=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;">${t}</span>`).join("")}</div>`:""}
+    ${(brief.messageTypes||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:8px;">${(brief.messageTypes||[]).map(t=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;">${t}</span>`).join("")}</div>`:""}
   </div>
-
-  <!-- DIRECTION: LOCKED vs OPEN -->
-  ${(brief.lockedElements?.length||brief.openForExploration?.length)?`
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+  ${(brief.lockedElements?.length||brief.openForExploration?.length)?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
     <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #ffcccc;">LOCKED IN</div>
-      ${locked}
+      <div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #ffcccc;">LOCKED IN</div>${locked}
     </div>
     <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#2d7d4f;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #b2f5c8;">OPEN TO EXPLORE</div>
-      ${open}
+      <div style="font-size:10px;color:#2d7d4f;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #b2f5c8;">OPEN TO EXPLORE</div>${open}
     </div>
   </div>`:""}
-
-  <!-- GUARDRAILS -->
-  ${brief.mustAvoid?`
-  <div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:20px;padding:28px;margin-bottom:24px;">
-    <div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:12px;">MUST AVOID</div>
-    <p style="font-size:15px;color:#551a1a;line-height:1.7;">${brief.mustAvoid}</p>
-  </div>`:""}
-
-  <!-- SUCCESS + DELIVERABLES -->
+  ${brief.mustAvoid?`<div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:20px;padding:28px;margin-bottom:24px;"><div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:12px;">MUST AVOID</div><p style="font-size:15px;color:#551a1a;line-height:1.7;">${brief.mustAvoid}</p></div>`:""}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
     <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
       <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee;">SUCCESS CRITERIA</div>
@@ -471,125 +460,124 @@ function openBriefMeTab(brief){
       ${brief.videoSizes?`<div style="margin-top:6px;font-size:12px;color:#666;">Video: ${brief.videoSizes}</div>`:""}
     </div>
   </div>
-
-  <!-- REFERENCES -->
-  ${refs.length?`
-  <div style="margin-bottom:24px;">
+  ${refs.length?`<div style="margin-bottom:24px;">
     <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #eee;">REFERENCE EXAMPLES</div>
-    <div style="display:grid;grid-template-columns:repeat(${refs.length===1?"1":"2"},1fr);gap:20px;">
-      ${refCards}
-    </div>
+    <div style="display:grid;grid-template-columns:repeat(${refs.length===1?"1":"2"},1fr);gap:20px;">${refCards}</div>
   </div>`:""}
-
-  <!-- FOOTER -->
   <div style="border-top:1px solid #ddd;padding-top:20px;display:flex;justify-content:space-between;align-items:center;">
     <span style="font-size:12px;color:#999;font-family:'DM Mono',monospace;">Submitted by ${brief.requestorName||""} · ${new Date(brief.submittedAt).toLocaleDateString()}</span>
     <span style="font-size:11px;color:#ccc;font-family:'DM Mono',monospace;">CREATIVE BRIEF TRANSLATOR (CBT)</span>
   </div>
-</div>
-</body>
-</html>`;
-
+</div></body></html>`;
   const blob=new Blob([html],{type:"text/html"});
-  const url=URL.createObjectURL(blob);
-  window.open(url,"_blank");
+  window.open(URL.createObjectURL(blob),"_blank");
 }
 
+/* ─── SEND EMAIL via mailto ─── */
+function sendBriefEmail(brief, toEmail) {
+  const subject=encodeURIComponent(`Creative Brief: ${brief.campaignName}`);
+  const body=encodeURIComponent(
+`Creative Brief — ${brief.campaignName}
+Submitted by: ${brief.requestorName} (${brief.requestorEmail||""})
+Campaign Type: ${brief.campaignType||""}
+Submitted: ${new Date(brief.submittedAt).toLocaleString()}
+
+THE CREATIVE REQUEST:
+${brief.problemStatement||""}
+
+Business Objective: ${Array.isArray(brief.businessObjective)?brief.businessObjective.join(", "):brief.businessObjective||""}
+Audience: ${brief.primaryAudience||""}
+Decision Type: ${brief.decisionType||""}
+
+---
+Open the CBT dashboard to view the full brief.`
+  );
+  window.location.href=`mailto:${toEmail}?cc=${encodeURIComponent(brief.requestorEmail||"")}&subject=${subject}&body=${body}`;
+}
+
+/* ─── WIZARD VIEW ─── */
 function WizardView({onSubmit}){
   const w=useWizard();
   const [done,setDone]=useState(false);
   const [brief,setBrief]=useState(null);
   const [vis,setVis]=useState(true);
   const go=fn=>{setVis(false);setTimeout(()=>{fn();setVis(true);},150);};
-
   const aiEligibility=useMemo(()=>computeAIEligibility(w.form),[w.form]);
-
   const submit=()=>{
     const el=computeAIEligibility(w.form);
     const b={...w.form,id:Date.now(),submittedAt:new Date().toISOString(),status:"New Brief",clarifications:{},aiEligibility:el};
     setBrief(b);setDone(true);onSubmit(b);
   };
-
   if(done&&brief){
     const el=brief.aiEligibility||computeAIEligibility(brief);
-    return(
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
-        <div style={{textAlign:"center",maxWidth:"520px"}}>
-          <div style={{fontSize:"15px",color:C.g5,fontFamily:"monospace",marginBottom:"10px"}}>{brief.campaignName} — {brief.requestorName}</div>
-          <h2 style={{fontSize:"52px",fontWeight:"800",color:C.w,marginBottom:"24px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
-          <AIBadge eligibility={el}/>
-          <AIEligibilityMessage eligibility={el}/>
-          <button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"16px 44px",fontSize:"16px",fontWeight:"700",cursor:"pointer",borderRadius:"3px",marginTop:"12px"}}>View Dashboard</button>
-        </div>
+    return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
+      <div style={{textAlign:"center",maxWidth:"520px"}}>
+        <div style={{fontSize:"15px",color:C.g5,fontFamily:"monospace",marginBottom:"10px"}}>{brief.campaignName} — {brief.requestorName}</div>
+        <h2 style={{fontSize:"52px",fontWeight:"800",color:C.w,marginBottom:"24px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
+        <AIBadge eligibility={el}/>
+        <AIEligibilityMessage eligibility={el}/>
+        <button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"16px 44px",fontSize:"16px",fontWeight:"700",cursor:"pointer",borderRadius:"3px",marginTop:"12px"}}>View Dashboard</button>
       </div>
-    );
+    </div>);
   }
-
-  return(
-    <div style={{display:"flex",height:"calc(100vh - 59px)",overflow:"hidden"}}>
-      {/* Sidebar — anchored at top, centered horizontally */}
-      <div style={{width:"210px",flexShrink:0,background:"#111",borderRight:`1px solid ${C.bor}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",padding:"32px 20px",gap:"24px",height:"100%",overflowY:"auto"}}>
-        <div style={{textAlign:"center"}}>
-          <div style={{fontFamily:"monospace",fontSize:"96px",lineHeight:"0.9",color:C.lime,letterSpacing:"-0.03em",userSelect:"none"}}>{String(w.sec).padStart(2,"0")}</div>
-          <div style={{fontSize:"11px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.14em",textTransform:"uppercase",marginTop:"10px"}}>{SNAMES[w.sec]}</div>
+  return(<div style={{display:"flex",height:"calc(100vh - 59px)",overflow:"hidden"}}>
+    <div style={{width:"210px",flexShrink:0,background:"#111",borderRight:`1px solid ${C.bor}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",padding:"32px 20px",gap:"24px",height:"100%",overflowY:"auto"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontFamily:"monospace",fontSize:"96px",lineHeight:"0.9",color:C.lime,letterSpacing:"-0.03em",userSelect:"none"}}>{String(w.sec).padStart(2,"0")}</div>
+        <div style={{fontSize:"11px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.14em",textTransform:"uppercase",marginTop:"10px"}}>{SNAMES[w.sec]}</div>
+      </div>
+      <div style={{width:"100%"}}>
+        <div style={{fontSize:"12px",color:C.lime,fontFamily:"monospace",marginBottom:"14px",textAlign:"center"}}>{w.secs.indexOf(w.sec)+1} <span style={{color:`${C.lime}44`}}>/ {w.secs.length}</span></div>
+        <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+          {w.secs.map(s=>{const a=s===w.sec,p=w.secs.indexOf(s)<w.secs.indexOf(w.sec);return(
+            <div key={s} style={{display:"flex",alignItems:"center",gap:"9px"}}>
+              <div style={{width:"6px",height:"6px",borderRadius:"50%",flexShrink:0,background:C.lime,opacity:a?1:p?0.5:0.18}}/>
+              <span style={{fontSize:"12px",fontFamily:"monospace",color:a?C.lime:p?`${C.lime}77`:`${C.lime}33`,whiteSpace:"nowrap"}}>{SNAMES[s]}</span>
+            </div>
+          );})}
         </div>
-        <div style={{width:"100%"}}>
-          <div style={{fontSize:"12px",color:C.lime,fontFamily:"monospace",marginBottom:"14px",textAlign:"center"}}>{w.secs.indexOf(w.sec)+1} <span style={{color:`${C.lime}44`}}>/ {w.secs.length}</span></div>
-          <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
-            {w.secs.map(s=>{const a=s===w.sec,p=w.secs.indexOf(s)<w.secs.indexOf(w.sec);return(
-              <div key={s} style={{display:"flex",alignItems:"center",gap:"9px"}}>
-                <div style={{width:"6px",height:"6px",borderRadius:"50%",flexShrink:0,background:C.lime,opacity:a?1:p?0.5:0.18}}/>
-                <span style={{fontSize:"12px",fontFamily:"monospace",color:a?C.lime:p?`${C.lime}77`:`${C.lime}33`,whiteSpace:"nowrap"}}>{SNAMES[s]}</span>
-              </div>
-            );})}
+      </div>
+      {/* Live AI signal in sidebar */}
+      {w.sec>1&&<div style={{width:"100%",background:"#0d0d0d",border:`1px solid ${C.bor}`,borderRadius:"4px",padding:"10px"}}>
+        <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:"6px"}}>AI SIGNAL</div>
+        <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+          <span style={{fontSize:"16px"}}>{AI_BADGE_COLORS[aiEligibility.level].icon}</span>
+          <span style={{fontSize:"10px",color:C.g3,fontFamily:"monospace",lineHeight:"1.3"}}>{aiEligibility.label}</span>
+        </div>
+      </div>}
+    </div>
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:"16px 48px 14px",borderBottom:`1px solid ${C.bor}`,flexShrink:0}}>
+        <div style={{display:"flex",gap:"4px",marginBottom:"8px"}}>
+          {w.secs.map(s=>{const p=w.secs.indexOf(s),cp=w.secs.indexOf(w.sec);return<div key={s} style={{flex:1,height:"3px",borderRadius:"2px",background:p<cp?C.lime:s===w.sec?`${C.lime}55`:C.bor}}/>;})}</div>
+        <div style={{fontSize:"11px",fontFamily:"monospace",color:C.g5}}>{Math.round(w.prog)}% COMPLETE</div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"36px 48px 16px"}}>
+        <div style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(10px)",transition:"all 0.2s ease"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:C.blue,color:"#fff",padding:"5px 14px",fontSize:"12px",fontFamily:"monospace",marginBottom:"28px",borderRadius:"2px"}}>
+            SECTION {w.sec} — {SNAMES[w.sec].toUpperCase()}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"32px",maxWidth:"640px"}}>
+            {w.cur.map(f=>(<div key={f.id}><Field f={f} form={w.form} set={w.set}/></div>))}
           </div>
         </div>
       </div>
-
-      {/* Main — scrolls independently */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        {/* Progress bar */}
-        <div style={{padding:"16px 48px 14px",borderBottom:`1px solid ${C.bor}`,flexShrink:0}}>
-          <div style={{display:"flex",gap:"4px",marginBottom:"8px"}}>
-            {w.secs.map(s=>{const p=w.secs.indexOf(s),cp=w.secs.indexOf(w.sec);return<div key={s} style={{flex:1,height:"3px",borderRadius:"2px",background:p<cp?C.lime:s===w.sec?`${C.lime}55`:C.bor}}/>;})}</div>
-          <div style={{fontSize:"11px",fontFamily:"monospace",color:C.g5}}>{Math.round(w.prog)}% COMPLETE</div>
-        </div>
-
-        {/* Scrollable form area — stacked fields */}
-        <div style={{flex:1,overflowY:"auto",padding:"36px 48px 16px"}}>
-          <div style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(10px)",transition:"all 0.2s ease"}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:C.blue,color:"#fff",padding:"5px 14px",fontSize:"12px",fontFamily:"monospace",marginBottom:"28px",borderRadius:"2px"}}>
-              SECTION {w.sec} — {SNAMES[w.sec].toUpperCase()}
-            </div>
-            {/* Stacked single-column layout */}
-            <div style={{display:"flex",flexDirection:"column",gap:"32px",maxWidth:"640px"}}>
-              {w.cur.map(f=>(
-                <div key={f.id}>
-                  <Field f={f} form={w.form} set={w.set}/>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Nav buttons */}
-        <div style={{padding:"14px 48px 20px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",flexShrink:0}}>
-          <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"12px 28px",cursor:w.isF?"not-allowed":"pointer",fontSize:"14px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
-          {w.isL
-            ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
-            :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
-          }
-        </div>
+      <div style={{padding:"14px 48px 20px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",flexShrink:0}}>
+        <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"12px 28px",cursor:w.isF?"not-allowed":"pointer",fontSize:"14px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
+        {w.isL
+          ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
+          :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
+        }
       </div>
     </div>
-  );
+  </div>);
 }
 
 function StatusToggle({cur,onChange}){
   const [open,setOpen]=useState(false);
-  return <div style={{position:"relative"}}>
+  return<div style={{position:"relative"}}>
     <button type="button" onClick={e=>{e.stopPropagation();setOpen(o=>!o);}} style={{background:"transparent",border:`1px solid ${C.bor}`,color:C.g3,padding:"4px 10px",borderRadius:"3px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",display:"flex",alignItems:"center",gap:"5px"}}>
-      <span style={{width:"6px",height:"6px",borderRadius:"50%",background:SCOL[cur]||C.g5}}/>{cur} v
+      <span style={{width:"6px",height:"6px",borderRadius:"50%",background:SCOL[cur]||C.g5}}/>{cur} ▾
     </button>
     {open&&<div style={{position:"absolute",top:"calc(100% + 3px)",right:0,background:"#1A1A1A",border:`1px solid ${C.bor}`,borderRadius:"4px",zIndex:50,minWidth:"160px"}} onClick={e=>e.stopPropagation()}>
       {STATUSES.map(s=><button key={s} type="button" onClick={()=>{onChange(s);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:"7px",width:"100%",background:s===cur?`${SCOL[s]}15`:"transparent",border:"none",color:s===cur?SCOL[s]:C.g3,padding:"8px 12px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace",textAlign:"left",borderBottom:`1px solid ${C.bor}`}}>
@@ -599,54 +587,98 @@ function StatusToggle({cur,onChange}){
   </div>;
 }
 
+/* ─── SEND MODAL ─── */
+function SendModal({brief,onClose}){
+  const [email,setEmail]=useState("");
+  const [sent,setSent]=useState(false);
+  const send=()=>{
+    if(!email.trim())return;
+    sendBriefEmail(brief,email.trim());
+    setSent(true);
+  };
+  return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+    <div style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"8px",padding:"32px",width:"400px",maxWidth:"90vw"}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontSize:"14px",fontWeight:"700",color:C.w,marginBottom:"6px"}}>Send Brief via Email</div>
+      <div style={{fontSize:"12px",color:C.g5,marginBottom:"20px"}}>A summary will be sent to the recipient. {brief.requestorEmail?`${brief.requestorEmail} will be CC'd.`:""}</div>
+      {sent?<div style={{color:C.lime,fontSize:"13px",fontFamily:"monospace",textAlign:"center",padding:"12px"}}>✓ Email client opened — check your draft.</div>:<>
+        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="recipient@email.com" style={{width:"100%",background:"#0F0F0F",border:`1.5px solid ${C.bor}`,borderRadius:"4px",color:C.w,fontSize:"14px",padding:"10px 14px",outline:"none",marginBottom:"16px"}}/>
+        <div style={{display:"flex",gap:"8px",justifyContent:"flex-end"}}>
+          <button onClick={onClose} style={{background:"transparent",border:`1px solid ${C.bor}`,color:C.g3,padding:"8px 18px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace"}}>CANCEL</button>
+          <button onClick={send} disabled={!email.trim()} style={{background:email.trim()?C.blue:C.g7,color:email.trim()?"#fff":C.g5,border:"none",padding:"8px 22px",borderRadius:"3px",cursor:email.trim()?"pointer":"not-allowed",fontSize:"12px",fontFamily:"monospace",fontWeight:"700"}}>SEND</button>
+        </div>
+      </>}
+    </div>
+  </div>;
+}
+
+/* ─── BRIEF DETAIL ─── */
 function BriefDetail({brief,onBack,onUpdate}){
   const [clarifs,setClarifs]=useState(brief.clarifications||{});
   const [active,setActive]=useState(null);
   const [draft,setDraft]=useState("");
+  const [showSend,setShowSend]=useState(false);
+  const [expandedImg,setExpandedImg]=useState(null);
   const aiEligibility=useMemo(()=>brief.aiEligibility||computeAIEligibility(brief),[brief]);
+
   const send=(fid)=>{
     if(!draft.trim())return;
-    const n={id:Date.now(),q:draft,answered:false,answer:""};
+    const n={id:Date.now(),q:draft,ts:new Date().toISOString(),answered:false,answer:"",answerTs:null};
     const up={...clarifs,[fid]:[...(clarifs[fid]||[]),n]};
     setClarifs(up);setActive(null);setDraft("");
     onUpdate({...brief,clarifications:up});
-    alert("In production: email sent to " + (brief.requestorName||"brief owner") + " for clarification.");
   };
   const answer=(fid,nid,ans)=>{
-    const up={...clarifs,[fid]:(clarifs[fid]||[]).map(n=>n.id===nid?{...n,answered:true,answer:ans}:n)};
+    const up={...clarifs,[fid]:(clarifs[fid]||[]).map(n=>n.id===nid?{...n,answered:true,answer:ans,answerTs:new Date().toISOString()}:n)};
     setClarifs(up);onUpdate({...brief,clarifications:up});
   };
-  const Cl=({fid})=>{
+
+  // "The Creative Request" clarification — collapsible log
+  const CrCl=()=>{
+    const fid="problemStatement";
     const ex=clarifs[fid]||[];
     const open=active===fid;
-    return <div style={{marginTop:"6px"}}>
-      <button type="button" onClick={()=>{setActive(open?null:fid);setDraft("");}} style={{background:"transparent",border:"none",color:C.orange,cursor:"pointer",fontSize:"11px",fontFamily:"monospace",padding:0}}>
-        {open?"cancel":"request clarification"}
-      </button>
-      {ex.length>0&&<span style={{marginLeft:"10px",fontSize:"10px",color:C.orange,fontFamily:"monospace"}}>{ex.length} question{ex.length>1?"s":""}</span>}
-      {open&&<div style={{marginTop:"6px",background:"#1A1000",border:`1px solid ${C.orange}44`,borderRadius:"4px",padding:"10px"}}>
+    const [logOpen,setLogOpen]=useState(false);
+    return<div style={{marginTop:"8px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
+        <button type="button" onClick={()=>{setActive(open?null:fid);setDraft("");}} style={{background:"transparent",border:"none",color:C.orange,cursor:"pointer",fontSize:"11px",fontFamily:"monospace",padding:0}}>
+          {open?"cancel":"request clarification"}
+        </button>
+        {ex.length>0&&<button type="button" onClick={()=>setLogOpen(l=>!l)} style={{background:"transparent",border:"none",color:C.g5,cursor:"pointer",fontSize:"10px",fontFamily:"monospace",padding:0}}>
+          {logOpen?"▾ hide log":"▸ show log"} ({ex.length})
+        </button>}
+      </div>
+      {open&&<div style={{marginTop:"8px",background:"#1A1000",border:`1px solid ${C.orange}44`,borderRadius:"4px",padding:"10px"}}>
         <div style={{fontSize:"10px",color:C.orange,fontFamily:"monospace",marginBottom:"6px"}}>QUESTION FOR {brief.requestorName?.toUpperCase()}</div>
         <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="What needs clarification?" rows={2} style={{width:"100%",background:"transparent",border:`1px solid ${C.orange}44`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"7px",outline:"none",resize:"none",marginBottom:"7px"}}/>
         <button type="button" onClick={()=>send(fid)} style={{background:C.orange,color:"#0F0F0F",border:"none",padding:"6px 14px",borderRadius:"3px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace",fontWeight:"700"}}>SEND + NOTIFY</button>
       </div>}
-      {ex.map(n=><div key={n.id} style={{marginTop:"6px",background:"#151500",border:`1px solid ${C.orange}33`,borderRadius:"3px",padding:"10px"}}>
-        <div style={{fontSize:"11px",color:C.orange,marginBottom:"4px"}}>Q: {n.q}</div>
-        {n.answered?<div style={{fontSize:"11px",color:C.lime}}>A: {n.answer}</div>
-        :<div style={{display:"flex",gap:"5px"}}>
-          <input id={"ans-"+n.id} placeholder="Enter answer..." style={{flex:1,background:"transparent",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"5px 8px",outline:"none"}}/>
-          <button type="button" onClick={()=>answer(fid,n.id,document.getElementById("ans-"+n.id).value)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"5px 10px",borderRadius:"3px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",fontWeight:"700"}}>OK</button>
-        </div>}
-      </div>)}
+      {logOpen&&ex.length>0&&<div style={{marginTop:"8px"}}>
+        {ex.map(n=><div key={n.id} style={{background:"#151500",border:`1px solid ${C.orange}33`,borderRadius:"3px",padding:"10px",marginBottom:"6px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:"4px"}}>
+            <div style={{fontSize:"11px",color:C.orange}}>Q: {n.q}</div>
+            <span style={{fontSize:"9px",color:C.g5,fontFamily:"monospace"}}>{new Date(n.ts).toLocaleDateString()}</span>
+          </div>
+          {n.answered
+            ?<div style={{display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontSize:"11px",color:C.lime}}>A: {n.answer}</div>
+                {n.answerTs&&<span style={{fontSize:"9px",color:C.g5,fontFamily:"monospace"}}>{new Date(n.answerTs).toLocaleDateString()}</span>}
+              </div>
+            :<div style={{display:"flex",gap:"5px",marginTop:"4px"}}>
+              <input id={"ans-"+n.id} placeholder="Enter answer..." style={{flex:1,background:"transparent",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"5px 8px",outline:"none"}}/>
+              <button type="button" onClick={()=>answer(fid,n.id,document.getElementById("ans-"+n.id).value)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"5px 10px",borderRadius:"3px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",fontWeight:"700"}}>OK</button>
+            </div>}
+        </div>)}
+      </div>}
     </div>;
   };
+
   const R=({label,val,fid})=>{
     if(!val||(Array.isArray(val)&&!val.length))return null;
-    return <div style={{marginBottom:"14px",paddingBottom:"14px",borderBottom:`1px solid ${C.bor}`}}>
+    return<div style={{marginBottom:"14px",paddingBottom:"14px",borderBottom:`1px solid ${C.bor}`}}>
       <div style={{display:"grid",gridTemplateColumns:"190px 1fr",gap:"12px"}}>
         <span style={{fontSize:"12px",color:C.g5,fontFamily:"monospace"}}>{label}</span>
         <span style={{fontSize:"13px",color:C.g3,lineHeight:"1.65"}}>{Array.isArray(val)?val.join(", "):val}</span>
       </div>
-      {fid&&<div style={{paddingLeft:"202px"}}><Cl fid={fid}/></div>}
     </div>;
   };
   const S=({t,children})=><div style={{marginBottom:"32px"}}>
@@ -656,48 +688,70 @@ function BriefDetail({brief,onBack,onUpdate}){
     </div>
     {children}
   </div>;
-  return <>
+
+  return<>
+    {showSend&&<SendModal brief={brief} onClose={()=>setShowSend(false)}/>}
+    {expandedImg&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}} onClick={()=>setExpandedImg(null)}>
+      <img src={expandedImg} style={{maxWidth:"90vw",maxHeight:"90vh",borderRadius:"8px"}} onClick={e=>e.stopPropagation()}/>
+    </div>}
     <div style={{maxWidth:"800px",margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"28px"}}>
-        <button onClick={onBack} style={{background:"transparent",border:"none",color:C.lime,cursor:"pointer",fontSize:"12px",fontFamily:"monospace"}}>Back to All Briefs</button>
-        <button onClick={()=>openBriefMeTab(brief)} style={{background:C.blue,color:"#fff",border:"none",padding:"9px 20px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace",fontWeight:"700"}}>BRIEF ME</button>
+        <button onClick={onBack} style={{background:"transparent",border:"none",color:C.lime,cursor:"pointer",fontSize:"12px",fontFamily:"monospace"}}>← Back to All Briefs</button>
+        <div style={{display:"flex",gap:"8px"}}>
+          <button onClick={()=>openBriefMeTab(brief)} style={{background:C.blue,color:"#fff",border:"none",padding:"9px 20px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace",fontWeight:"700",letterSpacing:"0.05em"}}>SAVE</button>
+          <button onClick={()=>setShowSend(true)} style={{background:"transparent",border:`1.5px solid ${C.blue}`,color:C.blue,padding:"9px 20px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace",fontWeight:"700",letterSpacing:"0.05em"}}>SEND</button>
+        </div>
       </div>
       <div style={{borderBottom:`1px solid ${C.bor}`,paddingBottom:"20px",marginBottom:"28px"}}>
         <h1 style={{fontSize:"32px",fontWeight:"800",color:C.w,letterSpacing:"-0.01em",marginBottom:"6px"}}>{brief.campaignName}</h1>
         <p style={{color:C.g5,fontSize:"12px",fontFamily:"monospace"}}>Submitted by {brief.requestorName} · {new Date(brief.submittedAt).toLocaleString()}</p>
+        {brief.campaignType&&<span style={{marginTop:"8px",display:"inline-block",background:`${C.blue}22`,border:`1px solid ${C.blue}55`,color:C.blue,padding:"3px 10px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{brief.campaignType}</span>}
       </div>
-
       <AIBadge eligibility={aiEligibility}/>
       <AIEligibilityMessage eligibility={aiEligibility}/>
 
+      {/* THE CREATIVE REQUEST — with clarification */}
       <div style={{background:`${C.blue}12`,borderLeft:`4px solid ${C.blue}`,padding:"18px 22px",marginBottom:"32px",borderRadius:"0 4px 4px 0"}}>
-        <div style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",marginBottom:"6px"}}>THE CREATIVE PROBLEM</div>
+        <div style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",marginBottom:"6px"}}>THE CREATIVE REQUEST</div>
         <p style={{fontSize:"16px",color:C.w,lineHeight:"1.7",margin:0,fontWeight:"500"}}>{brief.problemStatement}</p>
-        <Cl fid="problemStatement"/>
+        <CrCl/>
       </div>
-      <S t="Ownership"><R label="Requestor" val={brief.requestorName} fid="requestorName"/><R label="Point of Contact" val={brief.creativeDecisionMaker} fid="creativeDecisionMaker"/></S>
-      <S t="Objective"><R label="Business Objective" val={brief.businessObjective} fid="businessObjective"/></S>
-      <S t="Decision Scope"><R label="Decision Needed" val={brief.decisionType} fid="decisionType"/><R label="Concepts Expected" val={brief.conceptCount}/></S>
-      <S t="Audience"><R label="Primary" val={brief.primaryAudience} fid="primaryAudience"/></S>
-      <S t="Core Message"><R label="Message Type" val={brief.messageTypes} fid="messageTypes"/><R label="Product Truth" val={brief.productTruthSource==="Other"?brief.productTruthOther:brief.productTruthSource} fid="productTruthSource"/></S>
+
+      <S t="Ownership">
+        <R label="Requestor" val={brief.requestorName}/>
+        <R label="Email" val={brief.requestorEmail}/>
+      </S>
+      <S t="Objective"><R label="Business Objective" val={brief.businessObjective}/></S>
+      <S t="Decision Scope"><R label="Decision Needed" val={brief.decisionType}/><R label="Concepts Expected" val={brief.conceptCount}/></S>
+      <S t="Audience"><R label="Primary" val={brief.primaryAudience}/></S>
+      <S t="Core Message"><R label="Message Type" val={brief.messageTypes}/><R label="Product Truth" val={brief.productTruthSource==="Other"?brief.productTruthOther:brief.productTruthSource}/></S>
+
+      {/* References — with image preview */}
       {brief.references?.length>0&&<S t="References">{brief.references.map((r,i)=><div key={r.id} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"4px",padding:"12px",marginBottom:"8px"}}>
-        <div style={{fontSize:"11px",color:C.g5,fontFamily:"monospace",marginBottom:"4px"}}>REF {i+1}</div>
-        {r.url&&<a href={r.url} target="_blank" rel="noreferrer" style={{color:"#50A8FF",fontSize:"12px",fontFamily:"monospace"}}>{r.url}</a>}
-        {r.file&&<span style={{color:C.lime,fontSize:"12px"}}>{r.file.name}</span>}
-        {r.likeBecause&&<div style={{marginTop:"4px",fontSize:"11px",color:C.g3}}>Like: {r.likeBecause}</div>}
+        <div style={{fontSize:"11px",color:C.g5,fontFamily:"monospace",marginBottom:"8px"}}>REF {i+1}</div>
+        {r.type==="file"&&r.fileDataUrl&&/\.(png|jpg|jpeg|gif|webp)/i.test(r.file?.name||"")&&(
+          <img src={r.fileDataUrl} onClick={()=>setExpandedImg(r.fileDataUrl)} style={{width:"100%",maxHeight:"180px",objectFit:"cover",borderRadius:"4px",marginBottom:"8px",cursor:"pointer"}}/>
+        )}
+        {r.type==="file"&&r.file&&!/\.(png|jpg|jpeg|gif|webp)/i.test(r.file?.name||"")&&(
+          <div style={{color:C.lime,fontSize:"12px",marginBottom:"6px"}}>📎 {r.file.name}</div>
+        )}
+        {r.type==="url"&&r.url&&<a href={r.url} target="_blank" rel="noreferrer" style={{color:"#50A8FF",fontSize:"12px",fontFamily:"monospace",display:"block",marginBottom:"6px"}}>{r.url}</a>}
+        {r.likeBecause&&<div style={{fontSize:"11px",color:C.g3}}>Likes: {r.likeBecause}</div>}
       </div>)}</S>}
-      <S t="Direction"><R label="Locked" val={brief.lockedElements} fid="lockedElements"/><R label="Open" val={brief.openForExploration} fid="openForExploration"/></S>
-      <S t="Guardrails"><R label="Must Include" val={brief.finalMustInclude} fid="finalMustInclude"/><R label="Must Avoid" val={brief.mustAvoid} fid="mustAvoid"/></S>
-      <S t="Success Criteria"><R label="Evaluated by" val={brief.successCriteria} fid="successCriteria"/></S>
-      <S t="Deliverables"><R label="Assets" val={brief.assetTypes} fid="assetTypes"/><R label="Static Sizes" val={brief.staticSizes}/><R label="Video Sizes" val={brief.videoSizes}/></S>
+
+      <S t="Direction"><R label="Locked" val={brief.lockedElements}/><R label="Open" val={brief.openForExploration}/></S>
+      <S t="Guardrails"><R label="Must Include" val={brief.finalMustInclude}/><R label="Must Avoid" val={brief.mustAvoid}/></S>
+      <S t="Success Criteria"><R label="Evaluated by" val={brief.successCriteria}/></S>
+      <S t="Deliverables"><R label="Assets" val={brief.assetTypes}/><R label="Static Sizes" val={brief.staticSizes}/><R label="Video Sizes" val={brief.videoSizes}/></S>
     </div>
   </>;
 }
 
+/* ─── DASHBOARD ─── */
 function Dashboard({briefs,onNew,onView,onStatus}){
   const cnt=s=>briefs.filter(b=>b.status===s).length;
   const stats=[["New Briefs","New Brief",C.lime],["In Progress","In Progress",C.blue],["Needs Clarification","Needs Clarification",C.orange],["Closed","Closed",C.g5]];
-  return <div style={{maxWidth:"900px",margin:"0 auto"}}>
+  return<div style={{maxWidth:"900px",margin:"0 auto"}}>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"32px"}}>
       {stats.map(([l,k,c])=><div key={k} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 20px"}}>
         <div style={{fontSize:"26px",fontWeight:"800",color:c,marginBottom:"4px"}}>{cnt(k)}</div>
@@ -717,12 +771,13 @@ function Dashboard({briefs,onNew,onView,onStatus}){
       {briefs.map(b=>{
         const obj=Array.isArray(b.businessObjective)?b.businessObjective.join(", "):b.businessObjective;
         const aiEl=b.aiEligibility||computeAIEligibility(b);
-        return <div key={b.id} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px"}}>
+        return<div key={b.id} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",marginBottom:"6px"}}>
             <div style={{cursor:"pointer",flex:1}} onClick={()=>onView(b)}>
               <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px"}}>
                 <div style={{fontSize:"16px",fontWeight:"700",color:C.w}}>{b.campaignName}</div>
                 <AIBadge eligibility={aiEl} compact/>
+                {b.campaignType&&<span style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",border:`1px solid ${C.blue}44`,padding:"1px 6px",borderRadius:"2px"}}>{b.campaignType}</span>}
               </div>
               <span style={{color:C.lime,fontSize:"11px",fontFamily:"monospace"}}>{obj?.toUpperCase()}</span>
             </div>
@@ -739,14 +794,20 @@ function Dashboard({briefs,onNew,onView,onStatus}){
   </div>;
 }
 
+/* ─── APP ROOT ─── */
 export default function App(){
   const [screen,setScreen]=useState("form");
-  const [briefs,setBriefs]=useState([]);
+  const [briefs,setBriefs]=useState(()=>loadBriefs());
   const [sel,setSel]=useState(null);
+
+  // Persist briefs to localStorage whenever they change
+  useEffect(()=>{saveBriefs(briefs);},[briefs]);
+
   const submit=(b,dash)=>{setBriefs(p=>p.find(x=>x.id===b.id)?p:[b,...p]);if(dash){setScreen("dashboard");setSel(null);}};
   const onStatus=(id,s)=>setBriefs(p=>p.map(b=>b.id===id?{...b,status:s}:b));
   const onUpdate=u=>{setBriefs(p=>p.map(b=>b.id===u.id?u:b));setSel(u);};
-  return <>
+
+  return<>
     <style>{`
       @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700;9..40,800&display=swap');
       *{box-sizing:border-box;margin:0;padding:0;} body{background:#0F0F0F;}
