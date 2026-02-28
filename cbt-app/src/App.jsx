@@ -67,16 +67,16 @@ function useWizard(){
   return{form,set,sec,cur,secs,prog,ok,next,prev,isF,isL};
 }
 
-const ul=(has)=>({width:"100%",border:"none",borderBottom:`2px solid ${has?C.blue:C.bor}`,outline:"none",background:"transparent",color:C.w,fontSize:"15px",fontFamily:"'DM Sans',sans-serif",padding:"10px 0",caretColor:C.blue});
-const Ql=({q,req})=><div style={{fontSize:"13px",fontWeight:"600",color:C.g3,marginBottom:"8px"}}>{q}{req&&<span style={{color:C.lime,marginLeft:"3px"}}>*</span>}</div>;
-const Qh=({hint})=>hint?<div style={{fontSize:"11px",color:C.g5,marginBottom:"8px",borderLeft:`2px solid ${C.blue}`,paddingLeft:"8px"}}>{hint}</div>:null;
+const ul=(has)=>({width:"100%",border:"none",borderBottom:`2px solid ${has?C.blue:C.bor}`,outline:"none",background:"transparent",color:C.w,fontSize:"17px",fontFamily:"'DM Sans',sans-serif",padding:"12px 0",caretColor:C.blue});
+const Ql=({q,req})=><div style={{fontSize:"15px",fontWeight:"600",color:C.g3,marginBottom:"10px"}}>{q}{req&&<span style={{color:C.lime,marginLeft:"3px"}}>*</span>}</div>;
+const Qh=({hint})=>hint?<div style={{fontSize:"12px",color:C.g5,marginBottom:"10px",borderLeft:`2px solid ${C.blue}`,paddingLeft:"10px"}}>{hint}</div>:null;
 
 function OptBtn({label,sel,onClick,multi}){
-  return <button type="button" onClick={onClick} style={{display:"flex",alignItems:"center",gap:"12px",padding:"10px 14px",border:`1.5px solid ${sel?C.lime:C.bor}`,borderRadius:"4px",background:sel?"#D1FF9810":"transparent",cursor:"pointer",width:"100%",textAlign:"left",marginBottom:"5px"}}>
-    <div style={{width:"16px",height:"16px",borderRadius:multi?"3px":"50%",flexShrink:0,border:`2px solid ${sel?C.lime:C.g5}`,background:sel?C.lime:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      {sel&&<span style={{color:"#0F0F0F",fontSize:"10px",fontWeight:"900"}}>v</span>}
+  return <button type="button" onClick={onClick} style={{display:"flex",alignItems:"center",gap:"14px",padding:"13px 18px",border:`1.5px solid ${sel?C.lime:C.bor}`,borderRadius:"4px",background:sel?"#D1FF9810":"transparent",cursor:"pointer",width:"100%",textAlign:"left",marginBottom:"7px"}}>
+    <div style={{width:"18px",height:"18px",borderRadius:multi?"3px":"50%",flexShrink:0,border:`2px solid ${sel?C.lime:C.g5}`,background:sel?C.lime:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      {sel&&<span style={{color:"#0F0F0F",fontSize:"11px",fontWeight:"900"}}>v</span>}
     </div>
-    <span style={{fontSize:"13px",color:sel?C.lime:C.w,fontWeight:sel?"600":"400"}}>{label}</span>
+    <span style={{fontSize:"15px",color:sel?C.lime:C.w,fontWeight:sel?"600":"400"}}>{label}</span>
   </button>;
 }
 
@@ -169,101 +169,162 @@ function Field({f,form,set}){
   return null;
 }
 
-function BriefMe({brief,onClose}){
-  const Tag=({l,c=C.lime})=><span style={{background:`${c}18`,border:`1px solid ${c}44`,color:c,padding:"3px 10px",borderRadius:"2px",fontSize:"11px",fontFamily:"monospace"}}>{l}</span>;
-  const Sec=({title,children})=><div style={{marginBottom:"40px"}}>
-    <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px",paddingBottom:"12px",borderBottom:`1px solid ${C.bor}`}}>
-      <span style={{fontSize:"11px",color:C.lime,fontFamily:"monospace",letterSpacing:"0.12em"}}>{title.toUpperCase()}</span>
-    </div>
-    {children}
-  </div>;
+function openBriefMeTab(brief){
+  const refs=brief.references||[];
   const objs=Array.isArray(brief.businessObjective)?brief.businessObjective:[brief.businessObjective].filter(Boolean);
-  return <div style={{position:"fixed",inset:0,background:C.bg,zIndex:1000,overflowY:"auto",fontFamily:"'DM Sans',sans-serif"}}>
-    <div style={{background:"#111",borderBottom:`1px solid ${C.bor}`,padding:"0 40px",height:"52px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:10}}>
-      <span style={{fontSize:"13px",fontWeight:"700",color:C.w}}>{brief.campaignName} <span style={{color:C.lime,fontSize:"11px",fontFamily:"monospace"}}>BRIEF ME</span></span>
-      <div style={{display:"flex",gap:"8px"}}>
-        <button onClick={()=>window.print()} style={{background:"transparent",border:`1px solid ${C.lime}55`,color:C.lime,padding:"6px 16px",borderRadius:"3px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace"}}>Download PDF</button>
-        <button onClick={onClose} style={{background:"transparent",border:`1px solid ${C.bor}`,color:C.g3,padding:"6px 16px",borderRadius:"3px",cursor:"pointer",fontSize:"11px"}}>Close</button>
+
+  // Build reference cards HTML - try to embed images for URLs
+  const refCards=refs.map((r,i)=>{
+    const imgSection = r.type==="url" && r.url
+      ? `<div style="background:#f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:16px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;">
+           <img src="https://api.microlink.io/?url=${encodeURIComponent(r.url)}&screenshot=true&meta=false&embed=screenshot.url" 
+                style="width:100%;height:100%;object-fit:cover;border-radius:8px;" 
+                onerror="this.parentElement.innerHTML='<a href=\\'${r.url.replace(/'/g,"&#39;")}\\'  target=\\'_blank\\' style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;text-decoration:none;color:#0078D4;font-size:13px;font-family:monospace;padding:16px;text-align:center;word-break:break-all;\\'>${r.url}</a>'"/>
+         </div>`
+      : r.file ? `<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:8px;padding:24px;margin-bottom:16px;display:flex;align-items:center;gap:12px;aspect-ratio:16/9;justify-content:center;">
+           <span style="font-size:40px;">📎</span><span style="color:#D1FF98;font-family:monospace;font-size:13px;">${r.file.name||"Uploaded file"}</span>
+         </div>` : "";
+
+    const tags=(r.take||[]).map(t=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:3px 10px;border-radius:20px;font-size:11px;font-family:monospace;">${t}</span>`).join(" ");
+    return `
+      <div style="break-inside:avoid;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);margin-bottom:28px;">
+        <div style="padding:20px 24px 0;">${imgSection}</div>
+        <div style="padding:16px 24px 24px;">
+          <div style="font-size:11px;color:#999;font-family:monospace;letter-spacing:0.1em;margin-bottom:10px;">REFERENCE ${i+1}</div>
+          ${tags ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${tags}</div>` : ""}
+          ${r.problem?`<div style="margin-bottom:10px;"><div style="font-size:10px;color:#999;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">SOLVES</div><p style="font-size:14px;color:#333;line-height:1.6;margin:0;">${r.problem}</p></div>`:""}
+          ${r.avoid?`<div><div style="font-size:10px;color:#FF6B6B;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">DO NOT COPY</div><p style="font-size:13px;color:#666;line-height:1.6;margin:0;">${r.avoid}</p></div>`:""}
+          ${r.url?`<a href="${r.url}" target="_blank" style="display:inline-block;margin-top:12px;font-size:11px;color:#0078D4;font-family:monospace;word-break:break-all;">${r.url}</a>`:""}
+        </div>
+      </div>`;
+  }).join("");
+
+  const locked=(brief.lockedElements||[]).map(e=>`<div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:8px;padding:10px 14px;font-size:13px;color:#cc4444;margin-bottom:6px;">🔒 ${e}</div>`).join("");
+  const open=(brief.openForExploration||[]).map(e=>`<div style="background:#f0fff4;border:1px solid #b2f5c8;border-radius:8px;padding:10px 14px;font-size:13px;color:#2d7d4f;margin-bottom:6px;">✦ ${e}</div>`).join("");
+  const criteria=(brief.successCriteria||[]).map(s=>`<div style="background:#f5f5ff;border:1px solid #d0d0ff;border-radius:8px;padding:10px 14px;font-size:13px;color:#5555cc;margin-bottom:6px;">${s}</div>`).join("");
+  const assets=(brief.assetTypes||[]).map(a=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;font-family:monospace;">${a}</span>`).join(" ");
+  const objTags=objs.map(o=>`<span style="background:#D1FF9820;border:1px solid #D1FF9866;color:#2a6a00;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;">${o}</span>`).join(" ");
+
+  const html=`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${brief.campaignName} — Brief Me</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:#F4F3EF;color:#1a1a1a;-webkit-print-color-adjust:exact;}
+  .page{max-width:900px;margin:0 auto;padding:40px 32px 80px;}
+  .pill{display:inline-block;padding:5px 16px;border-radius:20px;font-size:12px;font-weight:600;}
+  @media print{.no-print{display:none!important;}body{background:white;}}
+</style>
+</head>
+<body>
+<div class="no-print" style="background:#0F0F0F;padding:12px 32px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;">
+  <span style="color:#D1FF98;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;">BRIEF ME — ${brief.campaignName}</span>
+  <button onclick="window.print()" style="background:#D1FF98;color:#0F0F0F;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;font-weight:700;font-size:12px;font-family:'DM Mono',monospace;">DOWNLOAD PDF</button>
+</div>
+<div class="page">
+
+  <!-- HERO -->
+  <div style="background:linear-gradient(135deg,#0F0F0F 0%,#0d2340 100%);border-radius:24px;padding:56px 52px;margin-bottom:32px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-60px;right:-60px;width:280px;height:280px;background:#D1FF9812;border-radius:50%;"></div>
+    <div style="position:absolute;bottom:-40px;left:-40px;width:180px;height:180px;background:#0078D408;border-radius:50%;"></div>
+    <div style="position:relative;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${objTags}</div>
+      <h1 style="font-size:clamp(32px,5vw,52px);font-weight:800;color:white;line-height:1.1;letter-spacing:-0.02em;margin-bottom:28px;">${brief.campaignName}</h1>
+      <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-left:4px solid #0078D4;border-radius:0 12px 12px 0;padding:20px 24px;">
+        <div style="font-size:10px;color:#50A8FF;font-family:'DM Mono',monospace;letter-spacing:0.14em;margin-bottom:8px;">THE CREATIVE PROBLEM</div>
+        <p style="font-size:18px;color:rgba(255,255,255,0.92);line-height:1.7;font-weight:400;">${brief.problemStatement||""}</p>
       </div>
     </div>
-    <div style={{maxWidth:"860px",margin:"0 auto",padding:"48px 40px"}}>
-      <div style={{marginBottom:"48px"}}>
-        <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"16px"}}>{objs.map(o=><Tag key={o} l={o} c={C.blue}/>)}</div>
-        <h1 style={{fontSize:"48px",fontWeight:"800",color:C.w,letterSpacing:"-0.02em",lineHeight:"1.1",marginBottom:"24px"}}>{brief.campaignName}</h1>
-        <div style={{background:`${C.blue}15`,borderLeft:`4px solid ${C.blue}`,padding:"20px 24px",borderRadius:"0 4px 4px 0"}}>
-          <div style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.12em",marginBottom:"8px"}}>THE CREATIVE PROBLEM</div>
-          <p style={{fontSize:"18px",color:C.w,lineHeight:"1.7",margin:0,fontWeight:"500"}}>{brief.problemStatement}</p>
-        </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
+    ${[["DECISION TYPE",brief.decisionType,"#0078D4"],["CONCEPTS EXPECTED",brief.conceptCount,"#D1FF98"],["PRODUCT TRUTH SOURCE",brief.productTruthSource==="Other"?brief.productTruthOther:brief.productTruthSource,"#FF8C00"]].map(([l,v,c])=>`
+    <div style="background:white;border-radius:16px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">${l}</div>
+      <div style="font-size:15px;font-weight:700;color:${c};line-height:1.3;">${v||"—"}</div>
+    </div>`).join("")}
+  </div>
+
+  <!-- AUDIENCE -->
+  <div style="background:white;border-radius:20px;padding:36px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee;">AUDIENCE</div>
+    <div style="display:grid;grid-template-columns:${brief.secondaryAudience?"1fr 1fr":"1fr"};gap:20px;margin-bottom:${brief.audienceChallenge?"20px":"0"}">
+      <div style="background:linear-gradient(135deg,#D1FF9815,#D1FF9830);border:1px solid #D1FF9866;border-radius:12px;padding:20px;">
+        <div style="font-size:10px;color:#2a6a00;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">PRIMARY</div>
+        <div style="font-size:18px;font-weight:700;color:#1a1a1a;">${brief.primaryAudience||"—"}</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"48px"}}>
-        {[["DECISION TYPE",brief.decisionType,C.blue],["CONCEPTS",brief.conceptCount,C.lime],["TRUTH SOURCE",brief.productTruthSource==="Other"?brief.productTruthOther:brief.productTruthSource,C.orange]].map(([l,v,c])=>(
-          <div key={l} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"18px",textAlign:"center"}}>
-            <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",marginBottom:"6px"}}>{l}</div>
-            <div style={{fontSize:"13px",fontWeight:"700",color:c||C.w,lineHeight:"1.3"}}>{v||"—"}</div>
-          </div>
-        ))}
-      </div>
-      <Sec title="Audience">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"14px"}}>
-          <div style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"16px"}}>
-            <div style={{fontSize:"10px",color:C.lime,fontFamily:"monospace",marginBottom:"6px"}}>PRIMARY</div>
-            <div style={{fontSize:"15px",fontWeight:"700",color:C.w}}>{brief.primaryAudience||"—"}</div>
-          </div>
-          {brief.secondaryAudience&&<div style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"16px"}}>
-            <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",marginBottom:"6px"}}>SECONDARY</div>
-            <div style={{fontSize:"15px",fontWeight:"700",color:C.w}}>{brief.secondaryAudience}</div>
-          </div>}
-        </div>
-        {brief.audienceChallenge&&<div style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"16px"}}>
-          <div style={{fontSize:"10px",color:C.orange,fontFamily:"monospace",marginBottom:"6px"}}>AUDIENCE CHALLENGE</div>
-          <p style={{color:C.g3,fontSize:"14px",lineHeight:"1.65",margin:0}}>{brief.audienceChallenge}</p>
-        </div>}
-      </Sec>
-      <Sec title="Core Message">
-        <div style={{background:`${C.lime}0A`,border:`1px solid ${C.lime}33`,borderRadius:"6px",padding:"20px",marginBottom:"14px"}}>
-          <div style={{fontSize:"10px",color:C.lime,fontFamily:"monospace",marginBottom:"8px"}}>PRIMARY MESSAGE</div>
-          <p style={{fontSize:"18px",fontWeight:"700",color:C.w,lineHeight:"1.5",margin:0}}>{brief.primaryMessage||"—"}</p>
-        </div>
-        <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>{(brief.messageTypes||[]).map(t=><Tag key={t} l={t}/>)}</div>
-      </Sec>
-      <Sec title="Creative Direction">
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"16px"}}>
-          <div><div style={{fontSize:"10px",color:C.red,fontFamily:"monospace",marginBottom:"8px"}}>LOCKED</div>
-            {(brief.lockedElements||[]).map(e=><div key={e} style={{background:"#2D1010",border:`1px solid ${C.red}33`,borderRadius:"3px",padding:"8px 12px",fontSize:"12px",color:C.g3,marginBottom:"4px"}}>{e}</div>)}</div>
-          <div><div style={{fontSize:"10px",color:C.lime,fontFamily:"monospace",marginBottom:"8px"}}>OPEN TO EXPLORE</div>
-            {(brief.openForExploration||[]).map(e=><div key={e} style={{background:"#0F2D0F",border:`1px solid ${C.lime}33`,borderRadius:"3px",padding:"8px 12px",fontSize:"12px",color:C.g3,marginBottom:"4px"}}>{e}</div>)}</div>
-        </div>
-      </Sec>
-      <Sec title="Success & Deliverables">
-        <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"14px"}}>{(brief.successCriteria||[]).map(s=><Tag key={s} l={s} c={C.blue}/>)}</div>
-        <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>{(brief.assetTypes||[]).map(a=><Tag key={a} l={a} c={C.orange}/>)}</div>
-      </Sec>
-      {brief.mustAvoid&&<Sec title="Guardrails">
-        <div style={{background:"#1A0A0A",border:`1px solid ${C.red}33`,borderRadius:"6px",padding:"18px"}}>
-          <div style={{fontSize:"10px",color:C.red,fontFamily:"monospace",marginBottom:"8px"}}>MUST AVOID</div>
-          <p style={{color:C.g3,fontSize:"14px",lineHeight:"1.65",margin:0}}>{brief.mustAvoid}</p>
-        </div>
-      </Sec>}
-      {brief.references?.length>0&&<Sec title="References">
-        {brief.references.map((r,i)=><div key={r.id} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"16px",marginBottom:"8px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px"}}>
-          <div>
-            <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",marginBottom:"6px"}}>REF {i+1}</div>
-            {r.url&&<a href={r.url} target="_blank" rel="noreferrer" style={{color:"#50A8FF",fontSize:"12px",fontFamily:"monospace",wordBreak:"break-all"}}>{r.url}</a>}
-            {r.file&&<span style={{color:C.lime,fontSize:"12px"}}>{r.file.name}</span>}
-            {r.take?.length>0&&<div style={{marginTop:"8px",display:"flex",gap:"4px",flexWrap:"wrap"}}>{r.take.map(t=><Tag key={t} l={t} c={"#50A8FF"}/>)}</div>}
-          </div>
-          <div>
-            {r.problem&&<><div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",marginBottom:"4px"}}>SOLVES</div><p style={{color:C.g3,fontSize:"12px",margin:"0 0 8px",lineHeight:"1.5"}}>{r.problem}</p></>}
-            {r.avoid&&<><div style={{fontSize:"10px",color:C.red,fontFamily:"monospace",marginBottom:"4px"}}>DO NOT COPY</div><p style={{color:C.g3,fontSize:"12px",margin:0,lineHeight:"1.5"}}>{r.avoid}</p></>}
-          </div>
-        </div>)}
-      </Sec>}
-      <div style={{borderTop:`1px solid ${C.bor}`,paddingTop:"20px",display:"flex",justifyContent:"space-between"}}>
-        <span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>By {brief.requestorName} · {new Date(brief.submittedAt).toLocaleDateString()}</span>
-        <span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>CREATIVE BRIEF TRANSLATOR (CBT)</span>
-      </div>
+      ${brief.secondaryAudience?`<div style="background:#f8f8f8;border:1px solid #eee;border-radius:12px;padding:20px;"><div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">SECONDARY</div><div style="font-size:18px;font-weight:700;color:#1a1a1a;">${brief.secondaryAudience}</div></div>`:""}
     </div>
-  </div>;
+    ${brief.audienceChallenge?`<div style="background:#fff8f0;border:1px solid #ffe0b2;border-radius:12px;padding:20px;"><div style="font-size:10px;color:#FF8C00;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">AUDIENCE CHALLENGE</div><p style="font-size:14px;color:#444;line-height:1.7;">${brief.audienceChallenge}</p></div>`:""}
+  </div>
+
+  <!-- PRIMARY MESSAGE -->
+  <div style="background:linear-gradient(135deg,#0F0F0F,#111827);border-radius:20px;padding:40px;margin-bottom:24px;">
+    <div style="font-size:10px;color:#D1FF98;font-family:'DM Mono',monospace;letter-spacing:0.14em;margin-bottom:14px;">PRIMARY MESSAGE</div>
+    <p style="font-size:24px;font-weight:700;color:white;line-height:1.5;">${brief.primaryMessage||"—"}</p>
+    ${(brief.messageTypes||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;">${(brief.messageTypes||[]).map(t=>`<span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.16);color:rgba(255,255,255,0.8);padding:5px 14px;border-radius:20px;font-size:12px;">${t}</span>`).join("")}</div>`:""}
+  </div>
+
+  <!-- DIRECTION: LOCKED vs OPEN -->
+  ${(brief.lockedElements?.length||brief.openForExploration?.length)?`
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #ffcccc;">LOCKED IN</div>
+      ${locked}
+    </div>
+    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:10px;color:#2d7d4f;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #b2f5c8;">OPEN TO EXPLORE</div>
+      ${open}
+    </div>
+  </div>`:""}
+
+  <!-- GUARDRAILS -->
+  ${brief.mustAvoid?`
+  <div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:20px;padding:28px;margin-bottom:24px;">
+    <div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:12px;">MUST AVOID</div>
+    <p style="font-size:15px;color:#551a1a;line-height:1.7;">${brief.mustAvoid}</p>
+  </div>`:""}
+
+  <!-- SUCCESS + DELIVERABLES -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee;">SUCCESS CRITERIA</div>
+      ${criteria||"<p style='color:#ccc;font-size:13px;'>None specified</p>"}
+    </div>
+    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+      <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee;">ASSET TYPES</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">${assets||"<p style='color:#ccc;font-size:13px;'>None specified</p>"}</div>
+      ${brief.staticSizes?`<div style="margin-top:14px;font-size:12px;color:#666;">Static: ${brief.staticSizes}</div>`:""}
+      ${brief.videoSizes?`<div style="margin-top:6px;font-size:12px;color:#666;">Video: ${brief.videoSizes}</div>`:""}
+    </div>
+  </div>
+
+  <!-- REFERENCES -->
+  ${refs.length?`
+  <div style="margin-bottom:24px;">
+    <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #eee;">REFERENCE EXAMPLES</div>
+    <div style="display:grid;grid-template-columns:repeat(${refs.length===1?"1":"2"},1fr);gap:20px;">
+      ${refCards}
+    </div>
+  </div>`:""}
+
+  <!-- FOOTER -->
+  <div style="border-top:1px solid #ddd;padding-top:20px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-size:12px;color:#999;font-family:'DM Mono',monospace;">Submitted by ${brief.requestorName||""} · ${new Date(brief.submittedAt).toLocaleDateString()}</span>
+    <span style="font-size:11px;color:#ccc;font-family:'DM Mono',monospace;">CREATIVE BRIEF TRANSLATOR (CBT)</span>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const blob=new Blob([html],{type:"text/html"});
+  const url=URL.createObjectURL(blob);
+  window.open(url,"_blank");
 }
 
 function WizardView({onSubmit}){
@@ -276,52 +337,54 @@ function WizardView({onSubmit}){
   if(done&&brief)return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
       <div style={{textAlign:"center"}}>
-        <div style={{fontSize:"13px",color:C.g5,fontFamily:"monospace",marginBottom:"8px"}}>{brief.campaignName} — {brief.requestorName}</div>
-        <h2 style={{fontSize:"42px",fontWeight:"800",color:C.w,marginBottom:"32px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
-        <button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"14px 36px",fontSize:"14px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>View Dashboard</button>
+        <div style={{fontSize:"15px",color:C.g5,fontFamily:"monospace",marginBottom:"10px"}}>{brief.campaignName} — {brief.requestorName}</div>
+        <h2 style={{fontSize:"52px",fontWeight:"800",color:C.w,marginBottom:"36px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
+        <button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"16px 44px",fontSize:"16px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>View Dashboard</button>
       </div>
     </div>
   );
   return(
     <div style={{display:"flex",minHeight:"calc(100vh - 59px)"}}>
-      <div style={{width:"196px",flexShrink:0,background:"#111",borderRight:`1px solid ${C.bor}`,padding:"36px 22px",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
-        <div>
-          <div style={{fontFamily:"monospace",fontSize:"88px",lineHeight:"0.85",color:C.lime,letterSpacing:"-0.03em",userSelect:"none",marginBottom:"14px"}}>{String(w.sec).padStart(2,"0")}</div>
-          <div style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.12em",textTransform:"uppercase"}}>{SNAMES[w.sec]}</div>
+      {/* Sidebar */}
+      <div style={{width:"220px",flexShrink:0,background:"#111",borderRight:`1px solid ${C.bor}`,padding:"40px 24px",display:"flex",flexDirection:"column",justifyContent:"space-between",overflow:"hidden"}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontFamily:"monospace",fontSize:"96px",lineHeight:"0.85",color:C.lime,letterSpacing:"-0.03em",userSelect:"none",marginBottom:"10px"}}>{String(w.sec).padStart(2,"0")}</div>
+          <div style={{fontSize:"11px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.14em",textTransform:"uppercase",textAlign:"center"}}>{SNAMES[w.sec]}</div>
         </div>
         <div>
-          <div style={{fontSize:"13px",color:C.lime,fontFamily:"monospace",marginBottom:"14px"}}>{w.secs.indexOf(w.sec)+1} <span style={{color:`${C.lime}44`}}>/ {w.secs.length}</span></div>
-          <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+          <div style={{fontSize:"13px",color:C.lime,fontFamily:"monospace",marginBottom:"16px",textAlign:"center"}}>{w.secs.indexOf(w.sec)+1} <span style={{color:`${C.lime}44`}}>/ {w.secs.length}</span></div>
+          <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
             {w.secs.map(s=>{const a=s===w.sec,p=w.secs.indexOf(s)<w.secs.indexOf(w.sec);return(
-              <div key={s} style={{display:"flex",alignItems:"center",gap:"8px"}}>
-                <div style={{width:"6px",height:"6px",borderRadius:"50%",background:C.lime,opacity:a?1:p?0.5:0.18}}/>
-                <span style={{fontSize:"12px",fontFamily:"monospace",color:a?C.lime:p?`${C.lime}77`:`${C.lime}33`}}>{SNAMES[s]}</span>
+              <div key={s} style={{display:"flex",alignItems:"center",gap:"9px"}}>
+                <div style={{width:"6px",height:"6px",borderRadius:"50%",flexShrink:0,background:C.lime,opacity:a?1:p?0.5:0.18}}/>
+                <span style={{fontSize:"12px",fontFamily:"monospace",color:a?C.lime:p?`${C.lime}77`:`${C.lime}33`,whiteSpace:"nowrap"}}>{SNAMES[s]}</span>
               </div>
             );})}
           </div>
         </div>
       </div>
-      <div style={{flex:1,display:"flex",flexDirection:"column",maxWidth:"760px"}}>
-        <div style={{padding:"22px 44px 18px",borderBottom:`1px solid ${C.bor}`}}>
-          <div style={{display:"flex",gap:"4px",marginBottom:"8px"}}>
+      {/* Main */}
+      <div style={{flex:1,display:"flex",flexDirection:"column"}}>
+        <div style={{padding:"24px 60px 20px",borderBottom:`1px solid ${C.bor}`}}>
+          <div style={{display:"flex",gap:"5px",marginBottom:"10px"}}>
             {w.secs.map(s=>{const p=w.secs.indexOf(s),cp=w.secs.indexOf(w.sec);return<div key={s} style={{flex:1,height:"3px",borderRadius:"2px",background:p<cp?C.lime:s===w.sec?`${C.lime}55`:C.bor}}/>;})}</div>
-          <div style={{fontSize:"11px",fontFamily:"monospace",color:C.g5}}>{Math.round(w.prog)}% COMPLETE</div>
+          <div style={{fontSize:"12px",fontFamily:"monospace",color:C.g5}}>{Math.round(w.prog)}% COMPLETE</div>
         </div>
-        <div style={{flex:1,padding:"36px 44px 24px",overflowY:"auto"}}>
-          <div style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(12px)",transition:"all 0.22s ease"}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:C.blue,color:"#fff",padding:"4px 12px",fontSize:"11px",fontFamily:"monospace",marginBottom:"28px",borderRadius:"2px"}}>
+        <div style={{flex:1,padding:"48px 60px 28px",overflowY:"auto"}}>
+          <div style={{maxWidth:"720px",opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(12px)",transition:"all 0.22s ease"}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:C.blue,color:"#fff",padding:"5px 14px",fontSize:"12px",fontFamily:"monospace",marginBottom:"36px",borderRadius:"2px"}}>
               SECTION {w.sec} — {SNAMES[w.sec].toUpperCase()}
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:"32px"}}>
+            <div style={{display:"flex",flexDirection:"column",gap:"44px"}}>
               {w.cur.map(f=><div key={f.id}><Field f={f} form={w.form} set={w.set}/></div>)}
             </div>
           </div>
         </div>
-        <div style={{padding:"18px 44px 28px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between"}}>
-          <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"10px 22px",cursor:w.isF?"not-allowed":"pointer",fontSize:"13px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
+        <div style={{padding:"22px 60px 36px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",maxWidth:"840px"}}>
+          <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"13px 28px",cursor:w.isF?"not-allowed":"pointer",fontSize:"15px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
           {w.isL
-            ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"12px 32px",fontSize:"14px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
-            :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"12px 28px",fontSize:"14px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
+            ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"14px 40px",fontSize:"16px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
+            :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"14px 36px",fontSize:"16px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
           }
         </div>
       </div>
@@ -344,7 +407,6 @@ function StatusToggle({cur,onChange}){
 }
 
 function BriefDetail({brief,onBack,onUpdate}){
-  const [showBM,setShowBM]=useState(false);
   const [clarifs,setClarifs]=useState(brief.clarifications||{});
   const [active,setActive]=useState(null);
   const [draft,setDraft]=useState("");
@@ -401,11 +463,10 @@ function BriefDetail({brief,onBack,onUpdate}){
     {children}
   </div>;
   return <>
-    {showBM&&<BriefMe brief={brief} onClose={()=>setShowBM(false)}/>}
     <div style={{maxWidth:"800px",margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"28px"}}>
         <button onClick={onBack} style={{background:"transparent",border:"none",color:C.lime,cursor:"pointer",fontSize:"12px",fontFamily:"monospace"}}>Back to All Briefs</button>
-        <button onClick={()=>setShowBM(true)} style={{background:C.blue,color:"#fff",border:"none",padding:"9px 20px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace",fontWeight:"700"}}>BRIEF ME</button>
+        <button onClick={()=>openBriefMeTab(brief)} style={{background:C.blue,color:"#fff",border:"none",padding:"9px 20px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace",fontWeight:"700"}}>BRIEF ME</button>
       </div>
       <div style={{borderBottom:`1px solid ${C.bor}`,paddingBottom:"20px",marginBottom:"28px"}}>
         <h1 style={{fontSize:"32px",fontWeight:"800",color:C.w,letterSpacing:"-0.01em",marginBottom:"6px"}}>{brief.campaignName}</h1>
