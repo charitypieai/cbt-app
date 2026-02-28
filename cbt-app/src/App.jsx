@@ -67,8 +67,8 @@ function useWizard(){
   return{form,set,sec,cur,secs,prog,ok,next,prev,isF,isL};
 }
 
-const ul=(has)=>({width:"100%",border:"none",borderBottom:`2px solid ${has?C.blue:C.bor}`,outline:"none",background:"transparent",color:C.w,fontSize:"17px",fontFamily:"'DM Sans',sans-serif",padding:"12px 0",caretColor:C.blue});
-const Ql=({q,req})=><div style={{fontSize:"15px",fontWeight:"600",color:C.g3,marginBottom:"10px"}}>{q}{req&&<span style={{color:C.lime,marginLeft:"3px"}}>*</span>}</div>;
+const ul=(has)=>({width:"100%",border:"none",borderBottom:`2px solid ${has?C.blue:C.bor}`,outline:"none",background:"transparent",color:C.w,fontSize:"15px",fontFamily:"'DM Sans',sans-serif",padding:"10px 0",caretColor:C.blue});
+const Ql=({q,req})=><div style={{fontSize:"18px",fontWeight:"700",color:C.w,marginBottom:"12px",lineHeight:"1.3"}}>{q}{req&&<span style={{color:C.lime,marginLeft:"4px"}}>*</span>}</div>;
 const Qh=({hint})=>hint?<div style={{fontSize:"12px",color:C.g5,marginBottom:"10px",borderLeft:`2px solid ${C.blue}`,paddingLeft:"10px"}}>{hint}</div>:null;
 
 function OptBtn({label,sel,onClick,multi}){
@@ -343,17 +343,21 @@ function WizardView({onSubmit}){
       </div>
     </div>
   );
+
+  // Decide which fields go in col1 vs col2 — text/textarea full width, options split
+  const spanFull=f=>f.t==="textarea"||f.t==="refs"||f.t==="channels"||f.t==="multi"||f.t==="single";
+
   return(
-    <div style={{display:"flex",minHeight:"calc(100vh - 59px)"}}>
-      {/* Sidebar */}
-      <div style={{width:"220px",flexShrink:0,background:"#111",borderRight:`1px solid ${C.bor}`,padding:"40px 24px",display:"flex",flexDirection:"column",justifyContent:"space-between",overflow:"hidden"}}>
+    <div style={{display:"flex",height:"calc(100vh - 59px)",overflow:"hidden"}}>
+      {/* Sidebar — fixed height, vertically centered content */}
+      <div style={{width:"210px",flexShrink:0,background:"#111",borderRight:`1px solid ${C.bor}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 20px",gap:"24px",height:"100%"}}>
         <div style={{textAlign:"center"}}>
-          <div style={{fontFamily:"monospace",fontSize:"96px",lineHeight:"0.85",color:C.lime,letterSpacing:"-0.03em",userSelect:"none",marginBottom:"10px"}}>{String(w.sec).padStart(2,"0")}</div>
-          <div style={{fontSize:"11px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.14em",textTransform:"uppercase",textAlign:"center"}}>{SNAMES[w.sec]}</div>
+          <div style={{fontFamily:"monospace",fontSize:"96px",lineHeight:"0.9",color:C.lime,letterSpacing:"-0.03em",userSelect:"none"}}>{String(w.sec).padStart(2,"0")}</div>
+          <div style={{fontSize:"11px",color:C.blue,fontFamily:"monospace",letterSpacing:"0.14em",textTransform:"uppercase",marginTop:"10px"}}>{SNAMES[w.sec]}</div>
         </div>
-        <div>
-          <div style={{fontSize:"13px",color:C.lime,fontFamily:"monospace",marginBottom:"16px",textAlign:"center"}}>{w.secs.indexOf(w.sec)+1} <span style={{color:`${C.lime}44`}}>/ {w.secs.length}</span></div>
-          <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
+        <div style={{width:"100%"}}>
+          <div style={{fontSize:"12px",color:C.lime,fontFamily:"monospace",marginBottom:"14px",textAlign:"center"}}>{w.secs.indexOf(w.sec)+1} <span style={{color:`${C.lime}44`}}>/ {w.secs.length}</span></div>
+          <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
             {w.secs.map(s=>{const a=s===w.sec,p=w.secs.indexOf(s)<w.secs.indexOf(w.sec);return(
               <div key={s} style={{display:"flex",alignItems:"center",gap:"9px"}}>
                 <div style={{width:"6px",height:"6px",borderRadius:"50%",flexShrink:0,background:C.lime,opacity:a?1:p?0.5:0.18}}/>
@@ -363,28 +367,39 @@ function WizardView({onSubmit}){
           </div>
         </div>
       </div>
-      {/* Main */}
-      <div style={{flex:1,display:"flex",flexDirection:"column"}}>
-        <div style={{padding:"24px 60px 20px",borderBottom:`1px solid ${C.bor}`}}>
-          <div style={{display:"flex",gap:"5px",marginBottom:"10px"}}>
+
+      {/* Main — scrolls independently */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {/* Progress bar */}
+        <div style={{padding:"16px 48px 14px",borderBottom:`1px solid ${C.bor}`,flexShrink:0}}>
+          <div style={{display:"flex",gap:"4px",marginBottom:"8px"}}>
             {w.secs.map(s=>{const p=w.secs.indexOf(s),cp=w.secs.indexOf(w.sec);return<div key={s} style={{flex:1,height:"3px",borderRadius:"2px",background:p<cp?C.lime:s===w.sec?`${C.lime}55`:C.bor}}/>;})}</div>
-          <div style={{fontSize:"12px",fontFamily:"monospace",color:C.g5}}>{Math.round(w.prog)}% COMPLETE</div>
+          <div style={{fontSize:"11px",fontFamily:"monospace",color:C.g5}}>{Math.round(w.prog)}% COMPLETE</div>
         </div>
-        <div style={{flex:1,padding:"48px 60px 28px",overflowY:"auto"}}>
-          <div style={{maxWidth:"720px",opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(12px)",transition:"all 0.22s ease"}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:C.blue,color:"#fff",padding:"5px 14px",fontSize:"12px",fontFamily:"monospace",marginBottom:"36px",borderRadius:"2px"}}>
+
+        {/* Scrollable form area */}
+        <div style={{flex:1,overflowY:"auto",padding:"36px 48px 16px"}}>
+          <div style={{opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(10px)",transition:"all 0.2s ease"}}>
+            <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:C.blue,color:"#fff",padding:"5px 14px",fontSize:"12px",fontFamily:"monospace",marginBottom:"28px",borderRadius:"2px"}}>
               SECTION {w.sec} — {SNAMES[w.sec].toUpperCase()}
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:"44px"}}>
-              {w.cur.map(f=><div key={f.id}><Field f={f} form={w.form} set={w.set}/></div>)}
+            {/* Two-column grid — full-width fields span both cols */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"32px 48px"}}>
+              {w.cur.map(f=>(
+                <div key={f.id} style={{gridColumn:spanFull(f)?"1 / -1":"auto"}}>
+                  <Field f={f} form={w.form} set={w.set}/>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-        <div style={{padding:"22px 60px 36px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",maxWidth:"840px"}}>
-          <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"13px 28px",cursor:w.isF?"not-allowed":"pointer",fontSize:"15px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
+
+        {/* Nav buttons */}
+        <div style={{padding:"14px 48px 20px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",flexShrink:0}}>
+          <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"12px 28px",cursor:w.isF?"not-allowed":"pointer",fontSize:"14px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
           {w.isL
-            ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"14px 40px",fontSize:"16px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
-            :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"14px 36px",fontSize:"16px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
+            ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
+            :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
           }
         </div>
       </div>
