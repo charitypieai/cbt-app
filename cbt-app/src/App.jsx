@@ -55,6 +55,21 @@ const SUCCESS_CRITERIA_OPTS = [
   { value:"Other", desc:"" },
 ];
 
+/* ─── VIDEO DURATION + PURPOSE OPTIONS ─── */
+const VIDEO_DURATION_OPTS = ["6s","15s","30s","60s","90s+","Multiple durations"];
+const VIDEO_PURPOSE_OPTS  = [
+  { value:"Concept exploration", desc:"For ideation and creative review only — not final production." },
+  { value:"Final production",    desc:"Intended for live use across channels." },
+];
+
+/* ─── SENSITIVE CONSTRAINTS OPTIONS ─── */
+const SENSITIVE_CONSTRAINT_OPTS = [
+  { value:"Legal review required",       desc:"Creative must go through legal approval before use." },
+  { value:"Regulatory / compliance",     desc:"Subject to industry, regional, or platform compliance rules." },
+  { value:"Reputational sensitivity",    desc:"Topic requires extra care around brand or public perception." },
+  { value:"None of the above",           desc:"No sensitive constraints apply to this brief." },
+];
+
 const FIELDS=[
   {id:"requestorName",s:1,q:"Who is submitting this brief?",t:"text",ph:"Your full name",req:true},
   {id:"requestorEmail",s:1,q:"Email address",t:"text",ph:"your@email.com",req:true},
@@ -62,20 +77,26 @@ const FIELDS=[
   {id:"campaignType",s:1,q:"Campaign Type",t:"campaignType",req:true},
   {id:"businessObjective",s:2,q:"Primary business objective?",t:"multi",req:true,opts:["Increase understanding","Change perception","Drive action","Support existing campaign","Other"],otherKey:"businessObjectiveOther"},
   {id:"problemStatement",s:2,q:"The Creative Request",t:"textarea",ph:"What gap, barrier, or tension are we resolving?",req:true},
-  {id:"decisionType",s:3,q:"What decision is needed from Design?",t:"single",req:true,opts:["Exploratory concepts","Single recommended direction","Iteration on existing work","Execution of pre-approved direction"]},
+  {id:"decisionType",s:3,q:"What decision is needed from Design?",t:"single",req:true,opts:["Exploratory concepts","Single recommended direction","Iteration on existing work","Execution of pre-approved direction","Resize / adapt existing assets"]},
   {id:"conceptCount",s:3,q:"How many concepts are expected?",t:"single",req:true,opts:["1 strong direction","2-3 distinct approaches","Iterations on 1 existing concept","Align in review"]},
   {id:"primaryAudience",s:4,q:"Who is the primary audience?",t:"text",ph:"e.g. SMB IT decision-makers, 35-54",req:true},
+  {id:"audienceType",s:4,q:"How is this audience defined?",t:"single",req:true,
+    opts:["Persona / segment-based (no hard demographic data)","Demographic data available (age range, income, etc.)","Both persona and demographic data available"],
+    hint:"This helps us understand how grounded the audience definition is."},
   {id:"messageTypes",s:5,q:"What type of message is this?",t:"multi",req:true,opts:["Product capability","Benefit-led","Proof / credibility","Emotional / cultural","Mixed"]},
   {id:"productTruthSource",s:5,q:"What is the source of product truth?",t:"single",req:true,opts:["Approved product documentation","Existing campaign / system","PM or Marketing alignment","Other"],otherKey:"productTruthOther"},
   {id:"references",s:6,q:"Reference examples",t:"refs",req:false},
   {id:"lockedElements",s:7,q:"What is already decided and locked?",t:"multi",req:true,opts:["Messaging","Brand system","CTA","Product positioning","Other"],otherKey:"lockedElementsOther"},
   {id:"openForExploration",s:7,q:"What is open for creative exploration?",t:"multi",req:true,opts:["Visual approach","Tone","Narrative","Metaphor vs. literal","Other"],otherKey:"openForExplorationOther"},
   {id:"finalMustInclude",s:8,q:"What must appear in the final design?",t:"multi",req:true,opts:["Logo","Product name","CTA","Legal","Accessibility","Other"],otherKey:"finalMustIncludeOther"},
-  {id:"mustAvoid",s:8,q:"What is explicitly off-limits?",t:"textarea",ph:"Styles, references, language to avoid...",req:true},
+  {id:"mustAvoid",s:8,q:"What is explicitly off-limits?",t:"textarea",ph:"Styles, references, language, or approaches to avoid...",req:true},
+  {id:"sensitiveConstraints",s:8,q:"Does this brief contain any sensitive constraints?",t:"sensitiveConstraints",req:true,
+    hint:"Select all that apply. This replaces keyword guessing — be explicit so Design can route correctly."},
   {id:"successCriteria",s:9,q:"How will success be evaluated?",t:"successCriteria",req:true},
   {id:"assetTypes",s:10,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther"},
   {id:"staticSizes",s:10,q:"Static sizes",t:"text",ph:"e.g. 1080x1080, 1200x628",req:true,showIf:f=>f.assetTypes?.includes("Static")},
-  {id:"videoSizes",s:10,q:"Video sizes and durations",t:"text",ph:"e.g. 9:16 at 15s",req:true,showIf:f=>f.assetTypes?.includes("Video")},
+  {id:"videoDuration",s:10,q:"Video duration(s)",t:"videoDuration",req:true,showIf:f=>f.assetTypes?.includes("Video")},
+  {id:"videoPurpose",s:10,q:"Video purpose",t:"videoPurpose",req:true,showIf:f=>f.assetTypes?.includes("Video")},
   {id:"channels",s:10,q:"Which channels will this run on?",t:"channels",req:true},
 ];
 
@@ -83,47 +104,160 @@ const PLATFORMS=["Instagram","TikTok","X","YouTube","Other"];
 const mkRef=()=>({id:Date.now()+Math.random(),type:"url",url:"",file:null,fileDataUrl:null,likeBecause:"",avoid:""});
 
 /* ─── PERSISTENT STORAGE (localStorage) ─── */
+function sanitiseForStorage(briefs){
+  // File objects can't be JSON serialised — strip them but keep fileDataUrl (base64)
+  return briefs.map(b=>({
+    ...b,
+    existingAssetsFile: undefined,
+    references:(b.references||[]).map(r=>({...r, file:undefined})),
+  }));
+}
 function loadBriefs(){
   try{const d=localStorage.getItem("cbt_briefs");return d?JSON.parse(d):[];}catch{return [];}
 }
 function saveBriefs(briefs){
-  try{localStorage.setItem("cbt_briefs",JSON.stringify(briefs));}catch{}
+  try{localStorage.setItem("cbt_briefs",JSON.stringify(sanitiseForStorage(briefs)));}catch{}
 }
 
-/* ─── AI ELIGIBILITY SCORING ─── */
+/* ─── DATA NORMALISATION HELPERS ─── */
+function normaliseStr(v){ return (v||"").toString().trim(); }
+function normaliseMaybeArr(v){ return Array.isArray(v)?v:(v?[v]:[]); }
+
+/* ─── AI ELIGIBILITY — PRIORITY WATERFALL (v3) ─── */
 function computeAIEligibility(form){
-  let score=0;
-  const reasons=[];
-  const blocks=[];
-  if(form.decisionType==="Execution of pre-approved direction"||form.decisionType==="Iteration on existing work"){score+=2;reasons.push("Execution / iteration scope");}
-  if(form.productTruthSource==="Approved product documentation"||form.productTruthSource==="Existing campaign / system"){score+=2;reasons.push("Approved source of truth");}
-  const assets=form.assetTypes||[];
-  const hasSimple=assets.some(a=>["Static","Carousel"].includes(a));
-  const hasSystem=assets.includes("System");
-  if(hasSimple&&!hasSystem){score+=2;reasons.push("Predictable asset types");}
-  const refs=form.references||[];
-  if(refs.length>0&&refs.some(r=>r.url||r.file)){score+=1;reasons.push("Reference examples provided");}
-  const locked=form.lockedElements||[];
-  const meaningfulLocked=locked.filter(l=>l!=="Other");
-  if(meaningfulLocked.length>0){score+=1;reasons.push("Locked elements present");}
-  const openFor=form.openForExploration||[];
-  if(openFor.includes("Narrative")&&openFor.includes("Metaphor vs. literal")){score-=2;blocks.push("Narrative + Metaphor exploration");}
-  if(form.productTruthSource==="Other"){score-=3;blocks.push("Source of truth is unverified");}
-  const mustAvoid=(form.mustAvoid||"").toLowerCase();
-  if(mustAvoid.includes("legal")||mustAvoid.includes("regulatory")||mustAvoid.includes("compliance")||mustAvoid.includes("reputational")){score-=3;blocks.push("Legal / regulatory constraints");}
-  if(hasSystem&&refs.length===0){score-=2;blocks.push("System design without references");}
-  let level,label,tasks;
-  if(score>=5){level="full";label="Full AI Assist";tasks=["Layout options","Draft copy","Variant sizes"];}
-  else if(score>=2){level="partial";label="Partial AI Assist";tasks=["Concept directions","Mood boards","Message framing","Copy variants"];}
-  else if(score>=0){
-    const msgTypes=form.messageTypes||[];
-    const hasEmotional=msgTypes.includes("Emotional / cultural");
-    const hasRefs=refs.length>0;
-    const hasLockedBrand=locked.includes("Brand system")||locked.includes("CTA");
-    if(hasEmotional&&hasRefs&&hasLockedBrand){level="guarded";label="AI-Assist with Guardrails";tasks=["Copy drafts","Structural layouts","Option expansion"];}
-    else{level="blocked";label="Human-Only Design";tasks=[];}
-  } else {level="blocked";label="Human-Only Design";tasks=[];}
-  return{score,level,label,tasks,reasons,blocks};
+
+  // ── 1. NORMALISE + VALIDATE INPUT ────────────────────────────────────────
+  const assets        = normaliseMaybeArr(form.assetTypes);
+  const openFor       = normaliseMaybeArr(form.openForExploration);
+  const locked        = normaliseMaybeArr(form.lockedElements);
+  const refs          = normaliseMaybeArr(form.references);
+  const msgTypes      = normaliseMaybeArr(form.messageTypes);
+  const sensitiveC    = normaliseMaybeArr(form.sensitiveConstraints);
+  const truthSource   = normaliseStr(form.productTruthSource);
+  const decisionType  = normaliseStr(form.decisionType);
+  const audienceType  = normaliseStr(form.audienceType);
+  const videoDuration = normaliseStr(form.videoDuration);
+  const videoPurpose  = normaliseStr(form.videoPurpose);
+
+  const hasRefs       = refs.length > 0 && refs.some(r => normaliseStr(r.url) || r.file);
+  const hasSystem     = assets.includes("System");
+  const hasVideo      = assets.includes("Video");
+  const hasNarrative  = openFor.includes("Narrative");
+  const hasMetaphor   = openFor.includes("Metaphor vs. literal");
+
+  // Channel count = distinct platforms with at least one handle entered
+  const channels2     = form.channels2 || {};
+  const platformCount = Object.entries(channels2).filter(([,handles])=>handles.some(h=>normaliseStr(h))).length;
+
+  // ── 2. BLOCKED — any one trigger = immediate stop ─────────────────────────
+  const blockedReasons = [];
+
+  if(truthSource === "Other")
+    blockedReasons.push("Source of product truth is unverified (Other)");
+  if(truthSource === "PM or Marketing alignment")
+    blockedReasons.push("Source of truth is PM / Marketing alignment only — no approved documentation");
+
+  if(hasNarrative)
+    blockedReasons.push("Narrative is open for exploration");
+  if(hasMetaphor)
+    blockedReasons.push("Metaphor vs. literal is open for exploration");
+
+  // Explicit sensitive constraints field — no keyword scanning
+  const hasSensitive = sensitiveC.some(c =>
+    c === "Legal review required" || c === "Regulatory / compliance" || c === "Reputational sensitivity"
+  );
+  if(hasSensitive)
+    blockedReasons.push("Sensitive constraints flagged: " + sensitiveC.filter(c=>c!=="None of the above").join(", "));
+
+  if(hasSystem && !hasRefs)
+    blockedReasons.push("System-level design with no reference examples provided");
+  if(hasSystem && platformCount > 2 && !hasRefs)
+    blockedReasons.push("Multi-channel system design (3+ platforms) with no references");
+
+  if(blockedReasons.length > 0){
+    return { level:"blocked", label:"Human-Only Design", tasks:[], reasons:[], blocks:blockedReasons };
+  }
+
+  // ── 3. FULL — all conditions must be true ────────────────────────────────
+  const isResizeScope    = decisionType === "Resize / adapt existing assets";
+  const isExecutionScope = decisionType === "Execution of pre-approved direction" || decisionType === "Iteration on existing work";
+  const isApprovedTruth  = truthSource === "Approved product documentation" || truthSource === "Existing campaign / system";
+  const hasSimpleAssets  = assets.some(a => ["Static","Carousel"].includes(a));
+
+  // Video is Full-eligible only if short-form (6s/15s) AND final production intent
+  const isShortForm      = ["6s","15s"].includes(videoDuration);
+  const isVideoFull      = hasVideo && isShortForm && videoPurpose === "Final production";
+  const isPredictableFull= (hasSimpleAssets || isVideoFull) && !hasSystem;
+
+  // Resize scope bypasses locked-elements requirement — everything is already decided by definition
+  const hasLockedElements= isResizeScope || locked.filter(l=>l!=="Other").length > 0;
+
+  if((isExecutionScope || isResizeScope) && isApprovedTruth && isPredictableFull && hasLockedElements){
+    const fullReasons = [
+      isResizeScope ? "Resize / adapt scope (direction fully pre-decided)" : "Execution or iteration scope",
+      "Approved source of truth",
+      "Predictable asset types",
+    ];
+    if(!isResizeScope) fullReasons.push("Locked elements present");
+    if(hasRefs) fullReasons.push("Reference examples provided (confidence boost)");
+    return { level:"full", label:"Full AI Assist", tasks:["Layout options","Draft copy","Variant sizes"], reasons:fullReasons, blocks:[] };
+  }
+
+  // ── 4. PARTIAL — all conditions must be true ─────────────────────────────
+  const isExploratoryScope   = decisionType === "Exploratory concepts" || decisionType === "Single recommended direction";
+  const isBoundedExploration = (openFor.includes("Visual approach") || openFor.includes("Tone")) && !hasNarrative && !hasMetaphor;
+
+  // PM alignment requires at least one reference as grounding proxy
+  const isPMAlignment   = truthSource === "PM or Marketing alignment";
+  const isGroundedTruth = truthSource !== "" && truthSource !== "Other" && !(isPMAlignment && !hasRefs);
+
+  // Video for Partial: short-form OR explicit concept exploration purpose
+  const isVideoPartial  = hasVideo && (isShortForm || videoPurpose === "Concept exploration");
+  const isConceptAssets = assets.some(a=>["Static","Carousel"].includes(a)) || isVideoPartial;
+
+  if(isExploratoryScope && isBoundedExploration && isGroundedTruth && isConceptAssets){
+    const partialReasons = [
+      "Exploratory or single-direction scope",
+      "Bounded exploration (Visual / Tone only)",
+      isPMAlignment && hasRefs ? "PM alignment grounded by reference examples" : "Grounded source of truth",
+      "Asset types suitable for concepting",
+    ];
+    return { level:"partial", label:"Partial AI Assist", tasks:["Concept directions","Mood boards","Message framing","Copy variants"], reasons:partialReasons, blocks:[] };
+  }
+
+  // ── 5. GUARDED — all conditions must be true ─────────────────────────────
+  const hasEmotionalMsg = msgTypes.includes("Emotional / cultural");
+  const hasLockedBrand  = locked.includes("Brand system") || locked.includes("CTA");
+
+  // Audience type is now an explicit field — no brittle keyword or age-range scanning
+  const isAbstractAudience = audienceType === "Persona / segment-based (no hard demographic data)";
+
+  // Guarded is drafting-only — conflicts with Exploratory concepts decision type
+  const guardedDecisionOk = decisionType !== "Exploratory concepts";
+
+  if(hasEmotionalMsg && isAbstractAudience && hasRefs && hasLockedBrand && guardedDecisionOk){
+    return {
+      level:"guarded",
+      label:"AI-Assist with Guardrails",
+      tasks:["Copy drafts","Structural layouts","Option expansion"],
+      reasons:[
+        "Emotional / cultural message type",
+        "Persona / segment-based audience",
+        "Reference examples provided",
+        "Brand system or CTA locked",
+      ],
+      blocks:[],
+    };
+  }
+
+  // ── 6. DEFAULT — helpful diagnostic ──────────────────────────────────────
+  const defaultBlocks = [];
+  if(!decisionType)   defaultBlocks.push("No decision type selected");
+  if(!truthSource || truthSource==="Other") defaultBlocks.push("No grounded source of product truth");
+  if(!assets.length)  defaultBlocks.push("No asset types selected");
+  if(defaultBlocks.length===0) defaultBlocks.push("Brief does not meet conditions for any AI-assist tier — review scope, exploration boundaries, and source of truth");
+
+  return { level:"blocked", label:"Human-Only Design", tasks:[], reasons:[], blocks:defaultBlocks };
 }
 
 const AI_BADGE_COLORS={
@@ -140,17 +274,19 @@ function AIBadge({eligibility,compact}){
   return<div style={{background:style.bg,border:`1.5px solid ${style.border}`,borderRadius:"8px",padding:"16px 20px",marginBottom:"20px"}}>
     <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"8px"}}>
       <span style={{fontSize:"24px"}}>{style.icon}</span>
-      <div>
-        <div style={{fontSize:"14px",fontWeight:"800",color:style.text}}>{eligibility.label}</div>
-        <div style={{fontSize:"11px",color:style.text,opacity:0.8,fontFamily:"monospace"}}>Score: {eligibility.score}</div>
-      </div>
+      <div style={{fontSize:"14px",fontWeight:"800",color:style.text}}>{eligibility.label}</div>
     </div>
     {eligibility.level!=="blocked"?(<div>
       <div style={{fontSize:"10px",fontWeight:"700",color:style.text,opacity:0.7,fontFamily:"monospace",marginBottom:"4px"}}>AI-ELIGIBLE TASKS</div>
       <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>{eligibility.tasks.map(t=><span key={t} style={{background:"rgba(255,255,255,0.25)",color:style.text,padding:"3px 8px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{t}</span>)}</div>
     </div>):(<div style={{fontSize:"12px",color:style.text,opacity:0.9}}>This request requires human-led design.</div>)}
-    {eligibility.reasons.length>0&&<div style={{marginTop:"8px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>Signals: {eligibility.reasons.join(" · ")}</div>}
-    {eligibility.blocks.length>0&&<div style={{marginTop:"4px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>Blockers: {eligibility.blocks.join(" · ")}</div>}
+    {eligibility.reasons.length>0&&<div style={{marginTop:"8px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>
+      Signals: {eligibility.reasons.join(" · ")}
+    </div>}
+    {eligibility.blocks.length>0&&<div style={{marginTop:"6px"}}>
+      <div style={{fontSize:"10px",fontWeight:"700",color:style.text,opacity:0.8,fontFamily:"monospace",marginBottom:"4px"}}>BLOCKED BECAUSE:</div>
+      {eligibility.blocks.map((b,i)=><div key={i} style={{fontSize:"11px",color:style.text,opacity:0.9,fontFamily:"monospace",marginBottom:"2px"}}>• {b}</div>)}
+    </div>}
   </div>;
 }
 
@@ -182,8 +318,23 @@ function useWizard(){
       const v=form[f.id];
       if(f.t==="multi"){if(!Array.isArray(v)||!v.length)return false;if(f.otherKey&&v.includes("Other")&&!form[f.otherKey]?.trim())return false;}
       else if(f.t==="single"){if(!v)return false;if(f.otherKey&&v==="Other"&&!form[f.otherKey]?.trim())return false;}
-      else if(f.t==="campaignType"){if(!form.campaignType)return false;if(form.campaignType==="Other"&&!form.campaignTypeOther?.trim())return false;}
+      else if(f.t==="campaignType"){
+        if(!form.campaignType)return false;
+        if(form.campaignType==="Other"&&!form.campaignTypeOther?.trim())return false;
+        // Validate existing assets sub-fields when mode is required
+        const mode=showExistingAssets(form.campaignType);
+        if(mode==="required"){
+          if(!form.existingAssetsAvail)return false;
+          if(form.existingAssetsAvail==="Yes — required to upload or link"){
+            if(!form.existingAssetsUrl?.trim()&&!form.existingAssetsFile)return false;
+            if(!form.existingAssetsNotes?.trim())return false;
+          }
+        }
+      }
       else if(f.t==="successCriteria"){const sc=form.successCriteria||[];if(!sc.length)return false;if(sc.includes("Other")&&!form.successCriteriaOther?.trim())return false;}
+      else if(f.t==="sensitiveConstraints"){const sc=normaliseMaybeArr(form.sensitiveConstraints);if(!sc.length)return false;}
+      else if(f.t==="videoDuration"){if(!form.videoDuration)return false;}
+      else if(f.t==="videoPurpose"){if(!form.videoPurpose)return false;}
       else if(f.t==="refs"||f.t==="channels"){}
       else if(!v?.toString().trim())return false;
     }
@@ -338,16 +489,60 @@ function ChField({form,set}){
   </div>;
 }
 
+/* ─── SENSITIVE CONSTRAINTS FIELD ─── */
+function SensitiveConstraintsField({form,set}){
+  const arr=normaliseMaybeArr(form.sensitiveConstraints);
+  const tog=opt=>{
+    // "None of the above" is mutually exclusive with the others
+    if(opt==="None of the above"){set("sensitiveConstraints",["None of the above"]);return;}
+    const without=arr.filter(o=>o!=="None of the above");
+    const next=without.includes(opt)?without.filter(o=>o!==opt):[...without,opt];
+    set("sensitiveConstraints",next);
+  };
+  return<div>
+    <Ql q="Does this brief contain any sensitive constraints?" req={true}/>
+    <Qh hint="Select all that apply. This field directly informs AI routing — be explicit."/>
+    {SENSITIVE_CONSTRAINT_OPTS.map(o=><OptBtn key={o.value} label={o.value} desc={o.desc} sel={arr.includes(o.value)} onClick={()=>tog(o.value)} multi={true}/>)}
+  </div>;
+}
+
+/* ─── VIDEO DURATION FIELD ─── */
+function VideoDurationField({form,set}){
+  const v=form.videoDuration;
+  return<div>
+    <Ql q="Video duration(s)" req={true}/>
+    <Qh hint="Select the primary duration. If multiple, select the longest or most complex."/>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginTop:"4px"}}>
+      {VIDEO_DURATION_OPTS.map(d=><button key={d} type="button" onClick={()=>set("videoDuration",d)}
+        style={{padding:"12px 8px",border:`1.5px solid ${v===d?C.lime:C.bor}`,borderRadius:"4px",background:v===d?"#D1FF9810":"transparent",color:v===d?C.lime:C.w,cursor:"pointer",fontSize:"14px",fontWeight:v===d?"700":"400",fontFamily:"monospace"}}>
+        {d}
+      </button>)}
+    </div>
+  </div>;
+}
+
+/* ─── VIDEO PURPOSE FIELD ─── */
+function VideoPurposeField({form,set}){
+  const v=form.videoPurpose;
+  return<div>
+    <Ql q="Video purpose" req={true}/>
+    {VIDEO_PURPOSE_OPTS.map(o=><OptBtn key={o.value} label={o.value} desc={o.desc} sel={v===o.value} onClick={()=>set("videoPurpose",o.value)} multi={false}/>)}
+  </div>;
+}
+
 function Field({f,form,set}){
   const v=form[f.id];
   const setV=val=>set(f.id,val);
   const tog=opt=>setV(Array.isArray(v)?v.includes(opt)?v.filter(o=>o!==opt):[...v,opt]:[opt]);
   if(f.t==="text")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/><input value={v||""} onChange={e=>setV(e.target.value)} placeholder={f.ph} style={ul(!!v)}/></>;
   if(f.t==="textarea")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/><textarea value={v||""} onChange={e=>setV(e.target.value)} placeholder={f.ph} rows={3} style={{...ul(!!v),resize:"vertical",display:"block",lineHeight:"1.6",paddingTop:"8px"}}/></>;
-  if(f.t==="single")return<><Ql q={f.q} req={f.req}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={v===o} onClick={()=>setV(o)} multi={false}/>{o==="Other"&&v==="Other"&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;
-  if(f.t==="multi"){const arr=Array.isArray(v)?v:[];return<><Ql q={f.q} req={f.req}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={arr.includes(o)} onClick={()=>tog(o)} multi={true}/>{o==="Other"&&arr.includes("Other")&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;}
+  if(f.t==="single")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={v===o} onClick={()=>setV(o)} multi={false}/>{o==="Other"&&v==="Other"&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;
+  if(f.t==="multi"){const arr=Array.isArray(v)?v:[];return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={arr.includes(o)} onClick={()=>tog(o)} multi={true}/>{o==="Other"&&arr.includes("Other")&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;}
   if(f.t==="campaignType")return<CampaignTypeField form={form} set={set}/>;
   if(f.t==="successCriteria")return<SuccessCriteriaField form={form} set={set}/>;
+  if(f.t==="sensitiveConstraints")return<SensitiveConstraintsField form={form} set={set}/>;
+  if(f.t==="videoDuration")return<VideoDurationField form={form} set={set}/>;
+  if(f.t==="videoPurpose")return<VideoPurposeField form={form} set={set}/>;
   if(f.t==="refs")return<RefsField form={form} set={set}/>;
   if(f.t==="channels")return<ChField form={form} set={set}/>;
   return null;
@@ -398,7 +593,7 @@ function openBriefMeTab(brief){
   const aiBadgeIcons={full:"🏆",partial:"🏆",guarded:"⚠️",blocked:"🛑"};
   const aiSection=`<div style="background:${aiEl.level==="blocked"?"#fff0f0":"#fffde7"};border:1.5px solid ${aiBadgeColors[aiEl.level]};border-radius:16px;padding:24px;margin-bottom:24px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:28px;">${aiBadgeIcons[aiEl.level]}</span>
-      <div><div style="font-size:16px;font-weight:800;color:#1a1a1a;">${aiEl.label}</div><div style="font-size:11px;color:#999;font-family:monospace;">Score: ${aiEl.score}</div></div>
+      <div><div style="font-size:16px;font-weight:800;color:#1a1a1a;">${aiEl.label}</div></div>
     </div>
     ${aiEl.level!=="blocked"?`<div style="font-size:13px;color:#333;margin-bottom:8px;">This request qualifies for AI-assisted workflows. Design will review all outputs.</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${aiEl.tasks.map(t=>`<span style="background:${aiBadgeColors[aiEl.level]}33;border:1px solid ${aiBadgeColors[aiEl.level]};color:#1a1a1a;padding:4px 10px;border-radius:20px;font-size:11px;font-family:monospace;">${t}</span>`).join("")}</div>`:`<div style="font-size:13px;color:#551a1a;">This request requires human-led design.</div>`}
   </div>`;
@@ -457,7 +652,7 @@ function openBriefMeTab(brief){
       <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee;">ASSET TYPES</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;">${assets||"<p style='color:#ccc;font-size:13px;'>None specified</p>"}</div>
       ${brief.staticSizes?`<div style="margin-top:14px;font-size:12px;color:#666;">Static: ${brief.staticSizes}</div>`:""}
-      ${brief.videoSizes?`<div style="margin-top:6px;font-size:12px;color:#666;">Video: ${brief.videoSizes}</div>`:""}
+      ${brief.videoDuration?`<div style="margin-top:6px;font-size:12px;color:#666;">Video: ${brief.videoDuration}${brief.videoPurpose?" · "+brief.videoPurpose:""}</div>`:""}
     </div>
   </div>
   ${refs.length?`<div style="margin-bottom:24px;">
@@ -618,6 +813,7 @@ function BriefDetail({brief,onBack,onUpdate}){
   const [draft,setDraft]=useState("");
   const [showSend,setShowSend]=useState(false);
   const [expandedImg,setExpandedImg]=useState(null);
+  const [clarLogOpen,setClarLogOpen]=useState(false);
   const aiEligibility=useMemo(()=>brief.aiEligibility||computeAIEligibility(brief),[brief]);
 
   const send=(fid)=>{
@@ -637,14 +833,13 @@ function BriefDetail({brief,onBack,onUpdate}){
     const fid="problemStatement";
     const ex=clarifs[fid]||[];
     const open=active===fid;
-    const [logOpen,setLogOpen]=useState(false);
     return<div style={{marginTop:"8px"}}>
       <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
         <button type="button" onClick={()=>{setActive(open?null:fid);setDraft("");}} style={{background:"transparent",border:"none",color:C.orange,cursor:"pointer",fontSize:"11px",fontFamily:"monospace",padding:0}}>
           {open?"cancel":"request clarification"}
         </button>
-        {ex.length>0&&<button type="button" onClick={()=>setLogOpen(l=>!l)} style={{background:"transparent",border:"none",color:C.g5,cursor:"pointer",fontSize:"10px",fontFamily:"monospace",padding:0}}>
-          {logOpen?"▾ hide log":"▸ show log"} ({ex.length})
+        {ex.length>0&&<button type="button" onClick={()=>setClarLogOpen(l=>!l)} style={{background:"transparent",border:"none",color:C.g5,cursor:"pointer",fontSize:"10px",fontFamily:"monospace",padding:0}}>
+          {clarLogOpen?"▾ hide log":"▸ show log"} ({ex.length})
         </button>}
       </div>
       {open&&<div style={{marginTop:"8px",background:"#1A1000",border:`1px solid ${C.orange}44`,borderRadius:"4px",padding:"10px"}}>
@@ -652,7 +847,7 @@ function BriefDetail({brief,onBack,onUpdate}){
         <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="What needs clarification?" rows={2} style={{width:"100%",background:"transparent",border:`1px solid ${C.orange}44`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"7px",outline:"none",resize:"none",marginBottom:"7px"}}/>
         <button type="button" onClick={()=>send(fid)} style={{background:C.orange,color:"#0F0F0F",border:"none",padding:"6px 14px",borderRadius:"3px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace",fontWeight:"700"}}>SEND + NOTIFY</button>
       </div>}
-      {logOpen&&ex.length>0&&<div style={{marginTop:"8px"}}>
+      {clarLogOpen&&ex.length>0&&<div style={{marginTop:"8px"}}>
         {ex.map(n=><div key={n.id} style={{background:"#151500",border:`1px solid ${C.orange}33`,borderRadius:"3px",padding:"10px",marginBottom:"6px"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:"4px"}}>
             <div style={{fontSize:"11px",color:C.orange}}>Q: {n.q}</div>
@@ -740,9 +935,20 @@ function BriefDetail({brief,onBack,onUpdate}){
       </div>)}</S>}
 
       <S t="Direction"><R label="Locked" val={brief.lockedElements}/><R label="Open" val={brief.openForExploration}/></S>
-      <S t="Guardrails"><R label="Must Include" val={brief.finalMustInclude}/><R label="Must Avoid" val={brief.mustAvoid}/></S>
+      <S t="Guardrails">
+        <R label="Must Include" val={brief.finalMustInclude}/>
+        <R label="Must Avoid" val={brief.mustAvoid}/>
+        <R label="Sensitive Constraints" val={normaliseMaybeArr(brief.sensitiveConstraints).join(", ")||"None specified"}/>
+      </S>
       <S t="Success Criteria"><R label="Evaluated by" val={brief.successCriteria}/></S>
-      <S t="Deliverables"><R label="Assets" val={brief.assetTypes}/><R label="Static Sizes" val={brief.staticSizes}/><R label="Video Sizes" val={brief.videoSizes}/></S>
+      <S t="Deliverables">
+        <R label="Assets" val={brief.assetTypes}/>
+        <R label="Static Sizes" val={brief.staticSizes}/>
+        {brief.assetTypes?.includes("Video")&&<>
+          <R label="Video Duration" val={brief.videoDuration}/>
+          <R label="Video Purpose" val={brief.videoPurpose}/>
+        </>}
+      </S>
     </div>
   </>;
 }
