@@ -93,7 +93,7 @@ const FIELDS=[
   {id:"sensitiveConstraints",s:8,q:"Does this brief contain any sensitive constraints?",t:"sensitiveConstraints",req:true,
     hint:"Select all that apply. This replaces keyword guessing — be explicit so Design can route correctly."},
   {id:"successCriteria",s:9,q:"How will success be evaluated?",t:"successCriteria",req:true},
-  {id:"assetTypes",s:10,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther"},
+  {id:"assetTypes",s:10,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther",systemHint:"Reusable visual or messaging architecture intended to scale across multiple formats, campaigns, or time periods — not a one-off asset set."},
   {id:"staticSizes",s:10,q:"Static sizes",t:"text",ph:"e.g. 1080x1080, 1200x628",req:true,showIf:f=>f.assetTypes?.includes("Static")},
   {id:"videoDuration",s:10,q:"Video duration(s)",t:"videoDuration",req:true,showIf:f=>f.assetTypes?.includes("Video")},
   {id:"videoPurpose",s:10,q:"Video purpose",t:"videoPurpose",req:true,showIf:f=>f.assetTypes?.includes("Video")},
@@ -228,24 +228,23 @@ function computeAIEligibility(form){
   // ── 5. GUARDED — all conditions must be true ─────────────────────────────
   const hasEmotionalMsg = msgTypes.includes("Emotional / cultural");
   const hasLockedBrand  = locked.includes("Brand system") || locked.includes("CTA");
-
-  // Audience type is now an explicit field — no brittle keyword or age-range scanning
   const isAbstractAudience = audienceType === "Persona / segment-based (no hard demographic data)";
 
   // Guarded is drafting-only — conflicts with Exploratory concepts decision type
   const guardedDecisionOk = decisionType !== "Exploratory concepts";
 
-  if(hasEmotionalMsg && isAbstractAudience && hasRefs && hasLockedBrand && guardedDecisionOk){
+  if(hasEmotionalMsg && hasRefs && hasLockedBrand && guardedDecisionOk){
+    const guardedReasons=[
+      "Emotional / cultural message type",
+      "Reference examples provided",
+      "Brand system or CTA locked",
+    ];
+    if(isAbstractAudience) guardedReasons.push("Persona / segment-based audience (confidence boost)");
     return {
       level:"guarded",
       label:"AI-Assist with Guardrails",
       tasks:["Copy drafts","Structural layouts","Option expansion"],
-      reasons:[
-        "Emotional / cultural message type",
-        "Persona / segment-based audience",
-        "Reference examples provided",
-        "Brand system or CTA locked",
-      ],
+      reasons:guardedReasons,
       blocks:[],
     };
   }
@@ -260,46 +259,83 @@ function computeAIEligibility(form){
   return { level:"blocked", label:"Human-Only Design", tasks:[], reasons:[], blocks:defaultBlocks };
 }
 
-const AI_BADGE_COLORS={
-  full:{bg:"linear-gradient(135deg,#FFD700,#FFA000)",text:"#1a1a1a",icon:"🏆",border:"#FFD700"},
-  partial:{bg:"linear-gradient(135deg,#FFD700,#FFB300)",text:"#1a1a1a",icon:"🏆",border:"#FFB300"},
-  guarded:{bg:"linear-gradient(135deg,#FF8C00,#FF6B00)",text:"#fff",icon:"⚠️",border:"#FF8C00"},
-  blocked:{bg:"linear-gradient(135deg,#FF4444,#CC0000)",text:"#fff",icon:"🛑",border:"#FF4444"},
+const AI_TIER_META={
+  full:{   color:"#4CAF82", bg:"#0d2018", border:"#4CAF8244", label:"Full AI Assist",     icon:"✦", tagline:"This brief is well-suited for AI-assisted production workflows." },
+  partial:{ color:"#50A8FF", bg:"#0d1a2e", border:"#50A8FF44", label:"Partial AI Assist",  icon:"✦", tagline:"This brief is a good candidate for AI-assisted concepting and drafting." },
+  guarded:{ color:"#FFB300", bg:"#1a1300", border:"#FFB30044", label:"AI-Assist with Guardrails", icon:"◈", tagline:"AI can support drafting here, with designer oversight throughout." },
+  blocked:{ color:"#A0A0A0", bg:"#141414", border:"#33333388", label:"Human-Only Design",  icon:"◇", tagline:"This brief requires human-led design based on the conditions below." },
 };
 
 function AIBadge({eligibility,compact}){
   if(!eligibility)return null;
-  const style=AI_BADGE_COLORS[eligibility.level];
-  if(compact)return<span title={eligibility.label} style={{display:"inline-flex",alignItems:"center",gap:"4px",fontSize:"14px",cursor:"default"}}>{style.icon}</span>;
-  return<div style={{background:style.bg,border:`1.5px solid ${style.border}`,borderRadius:"8px",padding:"16px 20px",marginBottom:"20px"}}>
-    <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"8px"}}>
-      <span style={{fontSize:"24px"}}>{style.icon}</span>
-      <div style={{fontSize:"14px",fontWeight:"800",color:style.text}}>{eligibility.label}</div>
-    </div>
-    {eligibility.level!=="blocked"?(<div>
-      <div style={{fontSize:"10px",fontWeight:"700",color:style.text,opacity:0.7,fontFamily:"monospace",marginBottom:"4px"}}>AI-ELIGIBLE TASKS</div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>{eligibility.tasks.map(t=><span key={t} style={{background:"rgba(255,255,255,0.25)",color:style.text,padding:"3px 8px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{t}</span>)}</div>
-    </div>):(<div style={{fontSize:"12px",color:style.text,opacity:0.9}}>This request requires human-led design.</div>)}
-    {eligibility.reasons.length>0&&<div style={{marginTop:"8px",fontSize:"10px",color:style.text,opacity:0.7,fontFamily:"monospace"}}>
-      Signals: {eligibility.reasons.join(" · ")}
-    </div>}
-    {eligibility.blocks.length>0&&<div style={{marginTop:"6px"}}>
-      <div style={{fontSize:"10px",fontWeight:"700",color:style.text,opacity:0.8,fontFamily:"monospace",marginBottom:"4px"}}>BLOCKED BECAUSE:</div>
-      {eligibility.blocks.map((b,i)=><div key={i} style={{fontSize:"11px",color:style.text,opacity:0.9,fontFamily:"monospace",marginBottom:"2px"}}>• {b}</div>)}
-    </div>}
-  </div>;
-}
+  const m=AI_TIER_META[eligibility.level]||AI_TIER_META.blocked;
+  if(compact)return(
+    <span title={m.label} style={{display:"inline-flex",alignItems:"center",gap:"4px",fontSize:"11px",color:m.color,fontFamily:"monospace",border:`1px solid ${m.border}`,padding:"1px 7px",borderRadius:"2px",background:m.bg}}>
+      {m.icon} {m.label}
+    </span>
+  );
 
-function AIEligibilityMessage({eligibility}){
-  if(!eligibility||eligibility.level==="blocked")return null;
-  return<div style={{background:"#1a1a00",border:`1px solid ${C.gold}44`,borderRadius:"6px",padding:"14px 18px",marginBottom:"20px"}}>
-    <div style={{fontSize:"13px",color:C.gold,fontWeight:"600",marginBottom:"4px"}}>
-      {eligibility.level==="full"?"⚡ This request qualifies for faster turnaround using AI-assisted workflows.":
-       eligibility.level==="partial"?"⚡ This request qualifies for AI-assisted concepting and drafting.":
-       "⚡ This request qualifies for limited AI-assisted drafting."}
+  const isBlocked=eligibility.level==="blocked";
+
+  return(
+    <div style={{background:m.bg,border:`1.5px solid ${m.border}`,borderRadius:"6px",marginBottom:"24px",overflow:"hidden"}}>
+
+      {/* Header row */}
+      <div style={{padding:"16px 22px 14px",borderBottom:`1px solid ${C.bor}`}}>
+        <div style={{fontSize:"9px",color:m.color,fontFamily:"monospace",letterSpacing:"0.14em",opacity:0.7,marginBottom:"6px"}}>DESIGNER RECOMMENDATION</div>
+        <div style={{display:"flex",alignItems:"baseline",gap:"10px",flexWrap:"wrap"}}>
+          <span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.1em",flexShrink:0}}>AI ASSIST SCORE</span>
+          <span style={{fontSize:"17px",fontWeight:"700",color:m.color,letterSpacing:"-0.01em"}}>{m.label}</span>
+        </div>
+        <div style={{fontSize:"12px",color:C.g3,marginTop:"5px",lineHeight:"1.55"}}>{m.tagline}</div>
+      </div>
+
+      {/* AI Suggested Tasks — only for non-blocked tiers */}
+      {!isBlocked&&eligibility.tasks.length>0&&(
+        <div style={{padding:"14px 22px",borderBottom:`1px solid ${C.bor}`}}>
+          <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.12em",marginBottom:"9px"}}>AI SUGGESTED TASKS</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"6px"}}>
+            {eligibility.tasks.map(t=>(
+              <span key={t} style={{background:`${m.color}15`,color:m.color,border:`1px solid ${m.color}30`,padding:"4px 10px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* What's supporting this — reasons for non-blocked */}
+      {!isBlocked&&eligibility.reasons.length>0&&(
+        <div style={{padding:"14px 22px"}}>
+          <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.12em",marginBottom:"9px"}}>WHAT'S SUPPORTING THIS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+            {eligibility.reasons.map((r,i)=>(
+              <div key={i} style={{display:"flex",gap:"8px",alignItems:"flex-start"}}>
+                <span style={{color:m.color,fontSize:"10px",flexShrink:0,marginTop:"3px",opacity:0.7}}>✓</span>
+                <span style={{fontSize:"12px",color:C.g3,lineHeight:"1.5"}}>{r}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Why human-only — block reasons */}
+      {isBlocked&&eligibility.blocks.length>0&&(
+        <div style={{padding:"14px 22px"}}>
+          <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.12em",marginBottom:"9px"}}>WHY THIS NEEDS HUMAN DESIGN</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+            {eligibility.blocks.map((b,i)=>(
+              <div key={i} style={{display:"flex",gap:"8px",alignItems:"flex-start"}}>
+                <span style={{color:C.g5,fontSize:"10px",flexShrink:0,marginTop:"3px"}}>—</span>
+                <span style={{fontSize:"12px",color:C.g3,lineHeight:"1.5"}}>{b}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
-    <div style={{fontSize:"11px",color:C.g3}}>Design will review all outputs.</div>
-  </div>;
+  );
 }
 
 /* ─── WIZARD HOOK ─── */
@@ -537,7 +573,8 @@ function Field({f,form,set}){
   if(f.t==="text")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/><input value={v||""} onChange={e=>setV(e.target.value)} placeholder={f.ph} style={ul(!!v)}/></>;
   if(f.t==="textarea")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/><textarea value={v||""} onChange={e=>setV(e.target.value)} placeholder={f.ph} rows={3} style={{...ul(!!v),resize:"vertical",display:"block",lineHeight:"1.6",paddingTop:"8px"}}/></>;
   if(f.t==="single")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={v===o} onClick={()=>setV(o)} multi={false}/>{o==="Other"&&v==="Other"&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;
-  if(f.t==="multi"){const arr=Array.isArray(v)?v:[];return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={arr.includes(o)} onClick={()=>tog(o)} multi={true}/>{o==="Other"&&arr.includes("Other")&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;}
+  if(f.t==="multi"){const arr=Array.isArray(v)?v:[];return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} desc={o==="System"&&f.systemHint?f.systemHint:undefined} sel={arr.includes(o)} onClick={()=>tog(o)} multi={true}/>{o==="Other"&&arr.includes("Other")&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;}
+
   if(f.t==="campaignType")return<CampaignTypeField form={form} set={set}/>;
   if(f.t==="successCriteria")return<SuccessCriteriaField form={form} set={set}/>;
   if(f.t==="sensitiveConstraints")return<SensitiveConstraintsField form={form} set={set}/>;
@@ -589,13 +626,21 @@ function openBriefMeTab(brief){
   const assets=(brief.assetTypes||[]).map(a=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;font-family:monospace;">${a}</span>`).join(" ");
   const objTags=objs.map(o=>`<span style="background:#D1FF9820;border:1px solid #D1FF9866;color:#2a6a00;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;">${o}</span>`).join(" ");
   const aiEl=computeAIEligibility(brief);
-  const aiBadgeColors={full:"#FFD700",partial:"#FFB300",guarded:"#FF8C00",blocked:"#FF4444"};
-  const aiBadgeIcons={full:"🏆",partial:"🏆",guarded:"⚠️",blocked:"🛑"};
-  const aiSection=`<div style="background:${aiEl.level==="blocked"?"#fff0f0":"#fffde7"};border:1.5px solid ${aiBadgeColors[aiEl.level]};border-radius:16px;padding:24px;margin-bottom:24px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:28px;">${aiBadgeIcons[aiEl.level]}</span>
-      <div><div style="font-size:16px;font-weight:800;color:#1a1a1a;">${aiEl.label}</div></div>
-    </div>
-    ${aiEl.level!=="blocked"?`<div style="font-size:13px;color:#333;margin-bottom:8px;">This request qualifies for AI-assisted workflows. Design will review all outputs.</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${aiEl.tasks.map(t=>`<span style="background:${aiBadgeColors[aiEl.level]}33;border:1px solid ${aiBadgeColors[aiEl.level]};color:#1a1a1a;padding:4px 10px;border-radius:20px;font-size:11px;font-family:monospace;">${t}</span>`).join("")}</div>`:`<div style="font-size:13px;color:#551a1a;">This request requires human-led design.</div>`}
+  const aiTierColors={full:"#4CAF82",partial:"#50A8FF",guarded:"#FFB300",blocked:"#A0A0A0"};
+  const aiTierTaglines={
+    full:"This brief is well-suited for AI-assisted production workflows.",
+    partial:"This brief is a good candidate for AI-assisted concepting and drafting.",
+    guarded:"AI can support drafting here, with designer oversight throughout.",
+    blocked:"This brief requires human-led design based on the conditions below."
+  };
+  const aiTierColor=aiTierColors[aiEl.level];
+  const aiSection=`<div style="background:#f8f8f8;border:1.5px solid #e0e0e0;border-left:4px solid ${aiTierColor};border-radius:12px;padding:24px;margin-bottom:24px;">
+    <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:8px;">AI ROUTING RECOMMENDATION</div>
+    <div style="font-size:18px;font-weight:800;color:${aiTierColor};margin-bottom:6px;">${aiEl.label}</div>
+    <div style="font-size:13px;color:#555;margin-bottom:${aiEl.tasks.length||aiEl.blocks.length?'16px':'0'};">${aiTierTaglines[aiEl.level]}</div>
+    ${aiEl.tasks.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${aiEl.tasks.map(t=>`<span style="background:${aiTierColor}22;border:1px solid ${aiTierColor}55;color:#1a1a1a;padding:4px 10px;border-radius:4px;font-size:11px;font-family:'DM Mono',monospace;">${t}</span>`).join("")}</div>`:""}
+    ${aiEl.blocks.length?`<div style="margin-top:12px;"><div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">WHY THIS BRIEF REQUIRES HUMAN DESIGN</div>${aiEl.blocks.map(b=>`<div style="font-size:13px;color:#555;margin-bottom:5px;">— ${b}</div>`).join("")}</div>`:""}
+    ${aiEl.reasons.length&&aiEl.level!=="blocked"?`<div style="margin-top:12px;font-size:11px;color:#aaa;font-family:'DM Mono',monospace;">Signals: ${aiEl.reasons.join(" · ")}</div>`:""}
   </div>`;
 
   const html=`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -697,20 +742,17 @@ function WizardView({onSubmit}){
   const [brief,setBrief]=useState(null);
   const [vis,setVis]=useState(true);
   const go=fn=>{setVis(false);setTimeout(()=>{fn();setVis(true);},150);};
-  const aiEligibility=useMemo(()=>computeAIEligibility(w.form),[w.form]);
   const submit=()=>{
     const el=computeAIEligibility(w.form);
     const b={...w.form,id:Date.now(),submittedAt:new Date().toISOString(),status:"New Brief",clarifications:{},aiEligibility:el};
     setBrief(b);setDone(true);onSubmit(b);
   };
   if(done&&brief){
-    const el=brief.aiEligibility||computeAIEligibility(brief);
     return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
       <div style={{textAlign:"center",maxWidth:"520px"}}>
         <div style={{fontSize:"15px",color:C.g5,fontFamily:"monospace",marginBottom:"10px"}}>{brief.campaignName} — {brief.requestorName}</div>
         <h2 style={{fontSize:"52px",fontWeight:"800",color:C.w,marginBottom:"24px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
-        <AIBadge eligibility={el}/>
-        <AIEligibilityMessage eligibility={el}/>
+        <p style={{fontSize:"14px",color:C.g3,marginBottom:"24px",lineHeight:"1.6"}}>Your brief has been sent to the design team. They'll review it and follow up with next steps.</p>
         <button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"16px 44px",fontSize:"16px",fontWeight:"700",cursor:"pointer",borderRadius:"3px",marginTop:"12px"}}>View Dashboard</button>
       </div>
     </div>);
@@ -732,14 +774,7 @@ function WizardView({onSubmit}){
           );})}
         </div>
       </div>
-      {/* Live AI signal in sidebar */}
-      {w.sec>1&&<div style={{width:"100%",background:"#0d0d0d",border:`1px solid ${C.bor}`,borderRadius:"4px",padding:"10px"}}>
-        <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:"6px"}}>AI SIGNAL</div>
-        <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
-          <span style={{fontSize:"16px"}}>{AI_BADGE_COLORS[aiEligibility.level].icon}</span>
-          <span style={{fontSize:"10px",color:C.g3,fontFamily:"monospace",lineHeight:"1.3"}}>{aiEligibility.label}</span>
-        </div>
-      </div>}
+
     </div>
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"16px 48px 14px",borderBottom:`1px solid ${C.bor}`,flexShrink:0}}>
@@ -807,7 +842,7 @@ function SendModal({brief,onClose}){
 }
 
 /* ─── BRIEF DETAIL ─── */
-function BriefDetail({brief,onBack,onUpdate}){
+function BriefDetail({brief,onBack,onUpdate,isDesigner}){
   const [clarifs,setClarifs]=useState(brief.clarifications||{});
   const [active,setActive]=useState(null);
   const [draft,setDraft]=useState("");
@@ -902,8 +937,7 @@ function BriefDetail({brief,onBack,onUpdate}){
         <p style={{color:C.g5,fontSize:"12px",fontFamily:"monospace"}}>Submitted by {brief.requestorName} · {new Date(brief.submittedAt).toLocaleString()}</p>
         {brief.campaignType&&<span style={{marginTop:"8px",display:"inline-block",background:`${C.blue}22`,border:`1px solid ${C.blue}55`,color:C.blue,padding:"3px 10px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{brief.campaignType}</span>}
       </div>
-      <AIBadge eligibility={aiEligibility}/>
-      <AIEligibilityMessage eligibility={aiEligibility}/>
+      {isDesigner&&<AIBadge eligibility={aiEligibility}/>}
 
       {/* THE CREATIVE REQUEST — with clarification */}
       <div style={{background:`${C.blue}12`,borderLeft:`4px solid ${C.blue}`,padding:"18px 22px",marginBottom:"32px",borderRadius:"0 4px 4px 0"}}>
@@ -954,10 +988,19 @@ function BriefDetail({brief,onBack,onUpdate}){
 }
 
 /* ─── DASHBOARD ─── */
-function Dashboard({briefs,onNew,onView,onStatus}){
+function Dashboard({briefs,onNew,onView,onStatus,role,setRole}){
+  const isDesigner=role==="designer";
   const cnt=s=>briefs.filter(b=>b.status===s).length;
   const stats=[["New Briefs","New Brief",C.lime],["In Progress","In Progress",C.blue],["Needs Clarification","Needs Clarification",C.orange],["Closed","Closed",C.g5]];
   return<div style={{maxWidth:"900px",margin:"0 auto"}}>
+    {/* Role toggle */}
+    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"20px"}}>
+      <div style={{background:C.sur,border:`1px solid ${C.bor}`,borderRadius:"4px",display:"inline-flex",padding:"3px",gap:"2px"}}>
+        {[["requestor","Requestor View"],["designer","Designer View"]].map(([r,l])=>(
+          <button key={r} onClick={()=>setRole(r)} style={{background:role===r?C.g7:"transparent",border:"none",color:role===r?C.w:C.g5,padding:"5px 14px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace",letterSpacing:"0.06em",borderRadius:"2px",fontWeight:role===r?"600":"400",transition:"all 0.15s"}}>{l.toUpperCase()}</button>
+        ))}
+      </div>
+    </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"32px"}}>
       {stats.map(([l,k,c])=><div key={k} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 20px"}}>
         <div style={{fontSize:"26px",fontWeight:"800",color:c,marginBottom:"4px"}}>{cnt(k)}</div>
@@ -968,6 +1011,9 @@ function Dashboard({briefs,onNew,onView,onStatus}){
       <h2 style={{fontSize:"18px",fontWeight:"700",color:C.w}}>All Briefs</h2>
       <button onClick={onNew} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"10px 22px",fontSize:"13px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>+ New Brief</button>
     </div>
+    {isDesigner&&<div style={{background:"#0d1a2e",border:`1px solid ${C.blue}33`,borderRadius:"4px",padding:"10px 14px",marginBottom:"16px",fontSize:"11px",color:`${C.blue}CC`,fontFamily:"monospace"}}>
+      DESIGNER VIEW — AI routing recommendations and full brief signals visible
+    </div>}
     {briefs.length===0?<div style={{border:`2px dashed ${C.bor}`,borderRadius:"4px",padding:"80px",textAlign:"center"}}>
       <div style={{fontSize:"36px",marginBottom:"12px"}}>📋</div>
       <p style={{color:C.g5,fontSize:"13px",fontFamily:"monospace",marginBottom:"20px"}}>No briefs yet.</p>
@@ -980,9 +1026,9 @@ function Dashboard({briefs,onNew,onView,onStatus}){
         return<div key={b.id} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",marginBottom:"6px"}}>
             <div style={{cursor:"pointer",flex:1}} onClick={()=>onView(b)}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px",flexWrap:"wrap"}}>
                 <div style={{fontSize:"16px",fontWeight:"700",color:C.w}}>{b.campaignName}</div>
-                <AIBadge eligibility={aiEl} compact/>
+                {isDesigner&&<AIBadge eligibility={aiEl} compact/>}
                 {b.campaignType&&<span style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",border:`1px solid ${C.blue}44`,padding:"1px 6px",borderRadius:"2px"}}>{b.campaignType}</span>}
               </div>
               <span style={{color:C.lime,fontSize:"11px",fontFamily:"monospace"}}>{obj?.toUpperCase()}</span>
@@ -1005,6 +1051,7 @@ export default function App(){
   const [screen,setScreen]=useState("form");
   const [briefs,setBriefs]=useState(()=>loadBriefs());
   const [sel,setSel]=useState(null);
+  const [role,setRole]=useState("requestor"); // "requestor" | "designer"
 
   // Persist briefs to localStorage whenever they change
   useEffect(()=>{saveBriefs(briefs);},[briefs]);
@@ -1042,8 +1089,8 @@ export default function App(){
       <div style={{height:"3px",background:`linear-gradient(90deg,${C.blue},#50A8FF,${C.blue})`}}/>
       <div style={{minHeight:"calc(100vh - 55px)"}}>
         {screen==="form"&&<WizardView onSubmit={submit}/>}
-        {screen==="dashboard"&&!sel&&<div style={{padding:"44px 36px"}}><Dashboard briefs={briefs} onNew={()=>setScreen("form")} onView={b=>setSel(b)} onStatus={onStatus}/></div>}
-        {screen==="dashboard"&&sel&&<div style={{padding:"44px 36px"}}><BriefDetail brief={sel} onBack={()=>setSel(null)} onUpdate={onUpdate}/></div>}
+        {screen==="dashboard"&&!sel&&<div style={{padding:"44px 36px"}}><Dashboard briefs={briefs} onNew={()=>setScreen("form")} onView={b=>setSel(b)} onStatus={onStatus} role={role} setRole={setRole}/></div>}
+        {screen==="dashboard"&&sel&&<div style={{padding:"44px 36px"}}><BriefDetail brief={sel} onBack={()=>setSel(null)} onUpdate={onUpdate} isDesigner={role==="designer"}/></div>}
       </div>
     </div>
   </>;
