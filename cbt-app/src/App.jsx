@@ -119,6 +119,9 @@ function saveBriefs(briefs){
   try{localStorage.setItem("cbt_briefs",JSON.stringify(sanitiseForStorage(briefs)));}catch{}
 }
 
+/* ─── CB NUMBER ─── */
+function formatCB(n){ return "CB"+String(n).padStart(3,"0"); }
+
 /* ─── DATA NORMALISATION HELPERS ─── */
 function normaliseStr(v){ return (v||"").toString().trim(); }
 function normaliseMaybeArr(v){ return Array.isArray(v)?v:(v?[v]:[]); }
@@ -736,7 +739,7 @@ Open the CBT dashboard to view the full brief.`
 }
 
 /* ─── WIZARD VIEW ─── */
-function WizardView({onSubmit}){
+function WizardView({onSubmit,briefCount,isDesigner}){
   const w=useWizard();
   const [done,setDone]=useState(false);
   const [brief,setBrief]=useState(null);
@@ -744,16 +747,22 @@ function WizardView({onSubmit}){
   const go=fn=>{setVis(false);setTimeout(()=>{fn();setVis(true);},150);};
   const submit=()=>{
     const el=computeAIEligibility(w.form);
-    const b={...w.form,id:Date.now(),submittedAt:new Date().toISOString(),status:"New Brief",clarifications:{},aiEligibility:el};
+    const cbNumber=briefCount+1;
+    const b={...w.form,id:Date.now(),cbNumber,submittedAt:new Date().toISOString(),status:"New Brief",clarifications:{},aiEligibility:el};
     setBrief(b);setDone(true);onSubmit(b);
   };
   if(done&&brief){
     return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
-      <div style={{textAlign:"center",maxWidth:"520px"}}>
-        <div style={{fontSize:"15px",color:C.g5,fontFamily:"monospace",marginBottom:"10px"}}>{brief.campaignName} — {brief.requestorName}</div>
-        <h2 style={{fontSize:"52px",fontWeight:"800",color:C.w,marginBottom:"24px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
-        <p style={{fontSize:"14px",color:C.g3,marginBottom:"24px",lineHeight:"1.6"}}>Your brief has been sent to the design team. They'll review it and follow up with next steps.</p>
-        <button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"16px 44px",fontSize:"16px",fontWeight:"700",cursor:"pointer",borderRadius:"3px",marginTop:"12px"}}>View Dashboard</button>
+      <div style={{textAlign:"center",maxWidth:"480px",padding:"0 24px"}}>
+        {/* CB Number */}
+        <div style={{display:"inline-block",background:"#0d1a2e",border:`1.5px solid ${C.blue}44`,borderRadius:"6px",padding:"12px 28px",marginBottom:"28px"}}>
+          <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.14em",marginBottom:"6px"}}>YOUR BRIEF NUMBER</div>
+          <div style={{fontSize:"42px",fontWeight:"800",color:C.blue,letterSpacing:"-0.02em",fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</div>
+        </div>
+        <h2 style={{fontSize:"36px",fontWeight:"800",color:C.w,marginBottom:"14px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
+        <p style={{fontSize:"14px",color:C.g3,marginBottom:"8px",lineHeight:"1.6"}}>{brief.campaignName}</p>
+        <p style={{fontSize:"13px",color:C.g5,marginBottom:"32px",lineHeight:"1.6"}}>The design team has received your brief and will follow up with next steps. Reference <span style={{color:C.w,fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</span> in any follow-up conversations.</p>
+        {isDesigner&&<button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"14px 40px",fontSize:"14px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>View Dashboard</button>}
       </div>
     </div>);
   }
@@ -933,7 +942,10 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
         </div>
       </div>
       <div style={{borderBottom:`1px solid ${C.bor}`,paddingBottom:"20px",marginBottom:"28px"}}>
-        <h1 style={{fontSize:"32px",fontWeight:"800",color:C.w,letterSpacing:"-0.01em",marginBottom:"6px"}}>{brief.campaignName}</h1>
+        <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"8px",flexWrap:"wrap"}}>
+          {brief.cbNumber&&<span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</span>}
+          <h1 style={{fontSize:"32px",fontWeight:"800",color:C.w,letterSpacing:"-0.01em"}}>{brief.campaignName}</h1>
+        </div>
         <p style={{color:C.g5,fontSize:"12px",fontFamily:"monospace"}}>Submitted by {brief.requestorName} · {new Date(brief.submittedAt).toLocaleString()}</p>
         {brief.campaignType&&<span style={{marginTop:"8px",display:"inline-block",background:`${C.blue}22`,border:`1px solid ${C.blue}55`,color:C.blue,padding:"3px 10px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{brief.campaignType}</span>}
       </div>
@@ -993,14 +1005,6 @@ function Dashboard({briefs,onNew,onView,onStatus,role,setRole}){
   const cnt=s=>briefs.filter(b=>b.status===s).length;
   const stats=[["New Briefs","New Brief",C.lime],["In Progress","In Progress",C.blue],["Needs Clarification","Needs Clarification",C.orange],["Closed","Closed",C.g5]];
   return<div style={{maxWidth:"900px",margin:"0 auto"}}>
-    {/* Role toggle */}
-    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"20px"}}>
-      <div style={{background:C.sur,border:`1px solid ${C.bor}`,borderRadius:"4px",display:"inline-flex",padding:"3px",gap:"2px"}}>
-        {[["requestor","Requestor View"],["designer","Designer View"]].map(([r,l])=>(
-          <button key={r} onClick={()=>setRole(r)} style={{background:role===r?C.g7:"transparent",border:"none",color:role===r?C.w:C.g5,padding:"5px 14px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace",letterSpacing:"0.06em",borderRadius:"2px",fontWeight:role===r?"600":"400",transition:"all 0.15s"}}>{l.toUpperCase()}</button>
-        ))}
-      </div>
-    </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"32px"}}>
       {stats.map(([l,k,c])=><div key={k} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 20px"}}>
         <div style={{fontSize:"26px",fontWeight:"800",color:c,marginBottom:"4px"}}>{cnt(k)}</div>
@@ -1011,9 +1015,6 @@ function Dashboard({briefs,onNew,onView,onStatus,role,setRole}){
       <h2 style={{fontSize:"18px",fontWeight:"700",color:C.w}}>All Briefs</h2>
       <button onClick={onNew} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"10px 22px",fontSize:"13px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>+ New Brief</button>
     </div>
-    {isDesigner&&<div style={{background:"#0d1a2e",border:`1px solid ${C.blue}33`,borderRadius:"4px",padding:"10px 14px",marginBottom:"16px",fontSize:"11px",color:`${C.blue}CC`,fontFamily:"monospace"}}>
-      DESIGNER VIEW — AI routing recommendations and full brief signals visible
-    </div>}
     {briefs.length===0?<div style={{border:`2px dashed ${C.bor}`,borderRadius:"4px",padding:"80px",textAlign:"center"}}>
       <div style={{fontSize:"36px",marginBottom:"12px"}}>📋</div>
       <p style={{color:C.g5,fontSize:"13px",fontFamily:"monospace",marginBottom:"20px"}}>No briefs yet.</p>
@@ -1026,7 +1027,8 @@ function Dashboard({briefs,onNew,onView,onStatus,role,setRole}){
         return<div key={b.id} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",marginBottom:"6px"}}>
             <div style={{cursor:"pointer",flex:1}} onClick={()=>onView(b)}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px",flexWrap:"wrap"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px",flexWrap:"wrap"}}>
+                {b.cbNumber&&<span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",flexShrink:0}}>{formatCB(b.cbNumber)}</span>}
                 <div style={{fontSize:"16px",fontWeight:"700",color:C.w}}>{b.campaignName}</div>
                 {isDesigner&&<AIBadge eligibility={aiEl} compact/>}
                 {b.campaignType&&<span style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",border:`1px solid ${C.blue}44`,padding:"1px 6px",borderRadius:"2px"}}>{b.campaignType}</span>}
@@ -1080,15 +1082,24 @@ export default function App(){
             CREATIVE BRIEF TRANSLATOR <span style={{color:C.lime}}>(CBT)</span>
           </span>
         </div>
-        <nav style={{display:"flex",gap:"2px"}}>
-          {[["form","New Brief"],["dashboard","Dashboard"]].map(([id,l])=>(
-            <button key={id} onClick={()=>{setScreen(id);setSel(null);}} style={{background:screen===id?C.lime:"transparent",border:"none",color:screen===id?"#0F0F0F":C.lime,padding:"6px 14px",cursor:"pointer",fontFamily:"monospace",fontSize:"11px",letterSpacing:"0.08em",fontWeight:screen===id?"700":"400",borderRadius:"3px"}}>{l.toUpperCase()}</button>
-          ))}
-        </nav>
+        <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+          {/* Role toggle — always visible */}
+          <div style={{background:C.sur,border:`1px solid ${C.bor}`,borderRadius:"3px",display:"inline-flex",padding:"2px",gap:"1px"}}>
+            {[["requestor","Requestor"],["designer","Designer"]].map(([r,l])=>(
+              <button key={r} onClick={()=>{setRole(r);if(r==="requestor"&&screen==="dashboard"){setScreen("form");setSel(null);}}} style={{background:role===r?"#2a2a2a":"transparent",border:"none",color:role===r?C.w:C.g5,padding:"4px 12px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",letterSpacing:"0.08em",borderRadius:"2px",fontWeight:role===r?"600":"400"}}>{l.toUpperCase()}</button>
+            ))}
+          </div>
+          {/* Dashboard nav — designer only */}
+          {role==="designer"&&<nav style={{display:"flex",gap:"2px"}}>
+            {[["form","New Brief"],["dashboard","Dashboard"]].map(([id,l])=>(
+              <button key={id} onClick={()=>{setScreen(id);setSel(null);}} style={{background:screen===id?C.lime:"transparent",border:"none",color:screen===id?"#0F0F0F":C.lime,padding:"6px 14px",cursor:"pointer",fontFamily:"monospace",fontSize:"11px",letterSpacing:"0.08em",fontWeight:screen===id?"700":"400",borderRadius:"3px"}}>{l.toUpperCase()}</button>
+            ))}
+          </nav>}
+        </div>
       </header>
       <div style={{height:"3px",background:`linear-gradient(90deg,${C.blue},#50A8FF,${C.blue})`}}/>
       <div style={{minHeight:"calc(100vh - 55px)"}}>
-        {screen==="form"&&<WizardView onSubmit={submit}/>}
+        {screen==="form"&&<WizardView onSubmit={submit} briefCount={briefs.length} isDesigner={role==="designer"}/>}
         {screen==="dashboard"&&!sel&&<div style={{padding:"44px 36px"}}><Dashboard briefs={briefs} onNew={()=>setScreen("form")} onView={b=>setSel(b)} onStatus={onStatus} role={role} setRole={setRole}/></div>}
         {screen==="dashboard"&&sel&&<div style={{padding:"44px 36px"}}><BriefDetail brief={sel} onBack={()=>setSel(null)} onUpdate={onUpdate} isDesigner={role==="designer"}/></div>}
       </div>
