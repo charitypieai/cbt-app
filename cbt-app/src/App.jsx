@@ -337,6 +337,11 @@ function AIBadge({eligibility,compact}){
         </div>
       )}
 
+      {/* Disclaimer */}
+      <div style={{padding:"10px 22px",borderTop:`1px solid ${C.bor}`,background:"#111"}}>
+        <p style={{fontSize:"10px",color:C.g5,lineHeight:"1.5",margin:0,fontStyle:"italic"}}>AI Assist recommendations reflect intake conditions at submission and do not replace Design judgment, brand standards, or Responsible AI requirements.</p>
+      </div>
+
     </div>
   );
 }
@@ -352,6 +357,11 @@ function useWizard(){
   const pos=secs.indexOf(sec);
   const prog=secs.length>1?Math.round(pos/(secs.length-1)*100):0;
   const ok=()=>{
+    // Always validate refs section: any added ref must have likeBecause filled
+    const refs=normaliseMaybeArr(form.references);
+    if(refs.length>0 && cur.some(f=>f.t==="refs")){
+      for(const r of refs){if(!r.likeBecause?.trim())return false;}
+    }
     for(const f of cur){
       if(!f.req)continue;
       const v=form[f.id];
@@ -492,7 +502,7 @@ function RefsField({form,set}){
       </label>}
       <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
         <div>
-          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>I LIKES THIS BECAUSE... <span style={{color:C.lime}}>*</span></div>
+          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>WHY I LIKE THIS <span style={{color:C.lime}}>*</span></div>
           <textarea value={ref.likeBecause||""} onChange={e=>upd(ref.id,{likeBecause:e.target.value})} placeholder="What draws you to this example..." rows={2} style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none",resize:"none"}}/>
         </div>
         <div>
@@ -754,13 +764,15 @@ function WizardView({onSubmit,briefCount,isDesigner}){
   if(done&&brief){
     return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
       <div style={{textAlign:"center",maxWidth:"480px",padding:"0 24px"}}>
-        {/* CB Number */}
         <div style={{display:"inline-block",background:"#0d1a2e",border:`1.5px solid ${C.blue}44`,borderRadius:"6px",padding:"12px 28px",marginBottom:"28px"}}>
           <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.14em",marginBottom:"6px"}}>YOUR BRIEF NUMBER</div>
           <div style={{fontSize:"42px",fontWeight:"800",color:C.blue,letterSpacing:"-0.02em",fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</div>
         </div>
-        <h2 style={{fontSize:"36px",fontWeight:"800",color:C.w,marginBottom:"14px",letterSpacing:"-0.02em"}}>Brief Submitted.</h2>
-        <p style={{fontSize:"14px",color:C.g3,marginBottom:"8px",lineHeight:"1.6"}}>{brief.campaignName}</p>
+        <h2 style={{fontSize:"36px",fontWeight:"800",color:C.w,marginBottom:"10px",letterSpacing:"-0.02em"}}>Thank you, {(brief.requestorName||"").split(" ")[0]}.</h2>
+        <div style={{marginBottom:"24px"}}>
+          <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.12em",marginBottom:"4px"}}>CAMPAIGN / PROJECT</div>
+          <div style={{fontSize:"16px",fontWeight:"600",color:C.g3}}>{brief.campaignName}</div>
+        </div>
         <p style={{fontSize:"13px",color:C.g5,marginBottom:"32px",lineHeight:"1.6"}}>The design team has received your brief and will follow up with next steps. Reference <span style={{color:C.w,fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</span> in any follow-up conversations.</p>
         {isDesigner&&<button onClick={()=>onSubmit(brief,true)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"14px 40px",fontSize:"14px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>View Dashboard</button>}
       </div>
@@ -1022,24 +1034,34 @@ function Dashboard({briefs,onNew,onView,onStatus,role,setRole}){
     </div>
     :<div style={{display:"grid",gap:"8px"}}>
       {briefs.map(b=>{
-        const obj=Array.isArray(b.businessObjective)?b.businessObjective.join(", "):b.businessObjective;
         const aiEl=b.aiEligibility||computeAIEligibility(b);
-        return<div key={b.id} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",marginBottom:"6px"}}>
-            <div style={{cursor:"pointer",flex:1}} onClick={()=>onView(b)}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px",flexWrap:"wrap"}}>
-                {b.cbNumber&&<span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",flexShrink:0}}>{formatCB(b.cbNumber)}</span>}
-                <div style={{fontSize:"16px",fontWeight:"700",color:C.w}}>{b.campaignName}</div>
-                {isDesigner&&<AIBadge eligibility={aiEl} compact/>}
-                {b.campaignType&&<span style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",border:`1px solid ${C.blue}44`,padding:"1px 6px",borderRadius:"2px"}}>{b.campaignType}</span>}
-              </div>
-              <span style={{color:C.lime,fontSize:"11px",fontFamily:"monospace"}}>{obj?.toUpperCase()}</span>
+        const tierMeta=AI_TIER_META[aiEl?.level]||AI_TIER_META.blocked;
+        return<div key={b.id} onClick={()=>onView(b)} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"stretch",gap:"20px"}}>
+          {/* LEFT */}
+          <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:"7px"}}>
+            {/* Row 1: CB# + Campaign Name */}
+            <div style={{display:"flex",alignItems:"baseline",gap:"9px"}}>
+              {b.cbNumber&&<span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",flexShrink:0,letterSpacing:"0.05em"}}>{formatCB(b.cbNumber)}</span>}
+              <span style={{fontSize:"16px",fontWeight:"700",color:C.w,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.campaignName}</span>
             </div>
-            <StatusToggle cur={b.status||"New Brief"} onChange={s=>onStatus(b.id,s)}/>
+            {/* Row 2: Campaign Type */}
+            {b.campaignType&&<div>
+              <span style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",border:`1px solid ${C.blue}33`,padding:"2px 8px",borderRadius:"2px",background:`${C.blue}0A`}}>{b.campaignType}</span>
+            </div>}
+            {/* Row 3: One-line description */}
+            <p style={{fontSize:"12px",color:C.g3,lineHeight:"1.5",margin:0,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{b.problemStatement}</p>
+            {/* Row 4: Deliverables */}
+            <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+              {b.assetTypes?.slice(0,5).map(a=><span key={a} style={{background:C.g7,color:C.g5,padding:"2px 7px",fontSize:"10px",fontFamily:"monospace",borderRadius:"2px"}}>{a}</span>)}
+            </div>
           </div>
-          <p onClick={()=>onView(b)} style={{fontSize:"12px",color:C.g3,lineHeight:"1.55",margin:"8px 0 12px",cursor:"pointer"}}>{b.problemStatement?.slice(0,130)}{b.problemStatement?.length>130?"...":""}</p>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>{b.assetTypes?.slice(0,4).map(a=><span key={a} style={{background:C.g7,color:C.g3,padding:"2px 7px",fontSize:"10px",fontFamily:"monospace",borderRadius:"2px"}}>{a}</span>)}</div>
+          {/* RIGHT */}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"space-between",flexShrink:0,gap:"10px"}} onClick={e=>e.stopPropagation()}>
+            <StatusToggle cur={b.status||"New Brief"} onChange={s=>onStatus(b.id,s)}/>
+            {isDesigner&&<div style={{textAlign:"right"}}>
+              <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:"3px"}}>AI ASSIST SCORE</div>
+              <div style={{fontSize:"11px",fontWeight:"700",color:tierMeta.color,fontFamily:"monospace"}}>{aiEl.label}</div>
+            </div>}
             <span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace"}}>{new Date(b.submittedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
           </div>
         </div>;
