@@ -6,8 +6,8 @@ const C = {
   w:"#F5F5F5",g3:"#A0A0A0",g5:"#666",g7:"#333",
   red:"#FF6B6B",green:"#4CAF82",gold:"#FFD700"
 };
-const STATUSES=["New Brief","In Progress","Needs Clarification","Closed"];
-const SCOL={"New Brief":C.lime,"In Progress":C.blue,"Needs Clarification":C.orange,"Closed":C.g5};
+const STATUSES=["New Brief","In Progress","Needs Clarification","Archived"];
+const SCOL={"New Brief":C.lime,"In Progress":C.blue,"Needs Clarification":C.orange,"Archived":C.g5};
 const SNAMES=["","Ownership","Objective","Scope","Audience","Message","References","Direction","Guardrails","Criteria","Deliverables"];
 const LIKE_OPTS=["First-frame clarity","Pacing","Visual hierarchy","Tone","Emotional payoff","Simplicity","Other"];
 
@@ -72,6 +72,7 @@ const SENSITIVE_CONSTRAINT_OPTS = [
 
 const FIELDS=[
   {id:"requestorName",s:1,q:"Who is submitting this brief?",t:"text",ph:"Your full name",req:true},
+  {id:"requestorTitle",s:1,q:"Title",t:"text",ph:"e.g. Senior Brand Manager",req:false},
   {id:"requestorEmail",s:1,q:"Email address",t:"text",ph:"your@email.com",req:true},
   {id:"campaignName",s:1,q:"Campaign / Project Name",t:"text",ph:"e.g. Surface Pro Q3 Launch",req:true},
   {id:"campaignType",s:1,q:"Campaign Type",t:"campaignType",req:true},
@@ -100,7 +101,7 @@ const FIELDS=[
   {id:"channels",s:10,q:"Which channels will this run on?",t:"channels",req:true},
 ];
 
-const PLATFORMS=["Instagram","TikTok","X","YouTube","Other"];
+const PLATFORMS=["Instagram","TikTok","X","YouTube","LinkedIn","Other"];
 const mkRef=()=>({id:Date.now()+Math.random(),type:"url",url:"",file:null,fileDataUrl:null,likeBecause:"",avoid:""});
 
 /* ─── PERSISTENT STORAGE (localStorage) ─── */
@@ -357,10 +358,10 @@ function useWizard(){
   const pos=secs.indexOf(sec);
   const prog=secs.length>1?Math.round(pos/(secs.length-1)*100):0;
   const ok=()=>{
-    // Always validate refs section: any added ref must have likeBecause filled
+    // Always validate refs section: any added ref must have likeBecause and avoid filled
     const refs=normaliseMaybeArr(form.references);
     if(refs.length>0 && cur.some(f=>f.t==="refs")){
-      for(const r of refs){if(!r.likeBecause?.trim())return false;}
+      for(const r of refs){if(!r.likeBecause?.trim()||!r.avoid?.trim())return false;}
     }
     for(const f of cur){
       if(!f.req)continue;
@@ -506,8 +507,8 @@ function RefsField({form,set}){
           <textarea value={ref.likeBecause||""} onChange={e=>upd(ref.id,{likeBecause:e.target.value})} placeholder="What draws you to this example..." rows={2} style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none",resize:"none"}}/>
         </div>
         <div>
-          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>DO NOT COPY</div>
-          <input value={ref.avoid} onChange={e=>upd(ref.id,{avoid:e.target.value})} placeholder="Avoid replicating..." style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none"}}/>
+          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>DO NOT COPY <span style={{color:C.lime}}>*</span></div>
+          <input value={ref.avoid||""} onChange={e=>upd(ref.id,{avoid:e.target.value})} placeholder="Avoid replicating..." style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none"}}/>
         </div>
       </div>
     </div>)}
@@ -516,7 +517,7 @@ function RefsField({form,set}){
 }
 
 function ChField({form,set}){
-  const ch=form.channels2||{Instagram:[],TikTok:[],X:[],YouTube:[],Other:[]};
+  const ch=form.channels2||{Instagram:[],TikTok:[],X:[],YouTube:[],LinkedIn:[],Other:[]};
   const add=p=>set("channels2",{...ch,[p]:[...ch[p],""]});
   const upd=(p,i,v)=>{const a=[...ch[p]];a[i]=v;set("channels2",{...ch,[p]:a});};
   const del=(p,i)=>set("channels2",{...ch,[p]:ch[p].filter((_,j)=>j!==i)});
@@ -755,11 +756,16 @@ function WizardView({onSubmit,briefCount,isDesigner}){
   const [brief,setBrief]=useState(null);
   const [vis,setVis]=useState(true);
   const go=fn=>{setVis(false);setTimeout(()=>{fn();setVis(true);},150);};
+  const submit=()=>{
+    const el=computeAIEligibility(w.form);
+    const cbNumber=briefCount+1;
+    const b={...w.form,id:Date.now(),cbNumber,submittedAt:new Date().toISOString(),status:"New Brief",clarifications:{},aiEligibility:el};
+    setBrief(b);setDone(true);onSubmit(b);
+  };
   useEffect(()=>{
     const handler=e=>{
       if(e.key!=="Enter")return;
       const tag=(e.target||{}).tagName;
-      // Don't intercept Enter in textareas or buttons
       if(tag==="TEXTAREA"||tag==="BUTTON")return;
       if(!w.ok())return;
       if(w.isL){submit();}else{go(w.next);}
@@ -767,12 +773,6 @@ function WizardView({onSubmit,briefCount,isDesigner}){
     window.addEventListener("keydown",handler);
     return()=>window.removeEventListener("keydown",handler);
   });
-  const submit=()=>{
-    const el=computeAIEligibility(w.form);
-    const cbNumber=briefCount+1;
-    const b={...w.form,id:Date.now(),cbNumber,submittedAt:new Date().toISOString(),status:"New Brief",clarifications:{},aiEligibility:el};
-    setBrief(b);setDone(true);onSubmit(b);
-  };
   if(done&&brief){
     return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"calc(100vh - 59px)"}}>
       <div style={{textAlign:"center",maxWidth:"480px",padding:"0 24px"}}>
@@ -879,56 +879,94 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
   const [clarifs,setClarifs]=useState(brief.clarifications||{});
   const [active,setActive]=useState(null);
   const [draft,setDraft]=useState("");
+  const [answerDrafts,setAnswerDrafts]=useState({});
   const [showSend,setShowSend]=useState(false);
   const [expandedImg,setExpandedImg]=useState(null);
   const [clarLogOpen,setClarLogOpen]=useState(false);
   const aiEligibility=useMemo(()=>brief.aiEligibility||computeAIEligibility(brief),[brief]);
 
+  const MAX_ROUNDS=3;
+  const fid="problemStatement";
+  const ex=clarifs[fid]||[];
+  const roundCount=ex.length;
+  const allAnswered=ex.length>0&&ex.every(n=>n.answered);
+  const canAskMore=roundCount<MAX_ROUNDS;
+
   const send=(fid)=>{
     if(!draft.trim())return;
-    const n={id:Date.now(),q:draft,ts:new Date().toISOString(),answered:false,answer:"",answerTs:null};
+    // Determine who is sending: designer asks, requestor answers (simplified: use role)
+    const from=isDesigner?"Design Team":brief.requestorName||"Requestor";
+    const n={id:Date.now(),q:draft,from,ts:new Date().toISOString(),answered:false,answer:"",answerFrom:"",answerTs:null};
     const up={...clarifs,[fid]:[...(clarifs[fid]||[]),n]};
     setClarifs(up);setActive(null);setDraft("");
+    // Auto-change status to Needs Clarification
+    onUpdate({...brief,clarifications:up,status:"Needs Clarification"});
+  };
+
+  const answer=(fid,nid)=>{
+    const ans=answerDrafts[nid]||"";
+    if(!ans.trim())return;
+    const answerFrom=isDesigner?"Design Team":brief.requestorName||"Requestor";
+    const up={...clarifs,[fid]:(clarifs[fid]||[]).map(n=>n.id===nid?{...n,answered:true,answer:ans,answerFrom,answerTs:new Date().toISOString()}:n)};
+    setClarifs(up);
+    setAnswerDrafts(d=>{const nd={...d};delete nd[nid];return nd;});
     onUpdate({...brief,clarifications:up});
   };
-  const answer=(fid,nid,ans)=>{
-    const up={...clarifs,[fid]:(clarifs[fid]||[]).map(n=>n.id===nid?{...n,answered:true,answer:ans,answerTs:new Date().toISOString()}:n)};
-    setClarifs(up);onUpdate({...brief,clarifications:up});
+
+  const markInProgress=()=>{
+    onUpdate({...brief,status:"In Progress"});
   };
 
   // "The Creative Request" clarification — collapsible log
   const CrCl=()=>{
-    const fid="problemStatement";
-    const ex=clarifs[fid]||[];
     const open=active===fid;
     return<div style={{marginTop:"8px"}}>
       <div style={{display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
-        <button type="button" onClick={()=>{setActive(open?null:fid);setDraft("");}} style={{background:"transparent",border:"none",color:C.orange,cursor:"pointer",fontSize:"11px",fontFamily:"monospace",padding:0}}>
+        {canAskMore&&<button type="button" onClick={()=>{setActive(open?null:fid);setDraft("");}} style={{background:"transparent",border:"none",color:C.orange,cursor:"pointer",fontSize:"11px",fontFamily:"monospace",padding:0}}>
           {open?"cancel":"request clarification"}
-        </button>
+        </button>}
+        {!canAskMore&&<span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace"}}>Max {MAX_ROUNDS} rounds reached</span>}
         {ex.length>0&&<button type="button" onClick={()=>setClarLogOpen(l=>!l)} style={{background:"transparent",border:"none",color:C.g5,cursor:"pointer",fontSize:"10px",fontFamily:"monospace",padding:0}}>
           {clarLogOpen?"▾ hide log":"▸ show log"} ({ex.length})
         </button>}
+        {allAnswered&&brief.status==="Needs Clarification"&&<button type="button" onClick={markInProgress} style={{background:C.blue,color:"#fff",border:"none",padding:"4px 12px",borderRadius:"3px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",fontWeight:"700"}}>Mark In Progress</button>}
       </div>
       {open&&<div style={{marginTop:"8px",background:"#1A1000",border:`1px solid ${C.orange}44`,borderRadius:"4px",padding:"10px"}}>
-        <div style={{fontSize:"10px",color:C.orange,fontFamily:"monospace",marginBottom:"6px"}}>QUESTION FOR {brief.requestorName?.toUpperCase()}</div>
+        <div style={{fontSize:"10px",color:C.orange,fontFamily:"monospace",marginBottom:"6px"}}>
+          QUESTION FROM {isDesigner?"DESIGN TEAM":"YOU"} → {isDesigner?brief.requestorName?.toUpperCase():"DESIGN TEAM"} · Round {roundCount+1} of {MAX_ROUNDS}
+        </div>
         <textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="What needs clarification?" rows={2} style={{width:"100%",background:"transparent",border:`1px solid ${C.orange}44`,borderRadius:"3px",color:C.w,fontSize:"13px",padding:"7px",outline:"none",resize:"none",marginBottom:"7px"}}/>
         <button type="button" onClick={()=>send(fid)} style={{background:C.orange,color:"#0F0F0F",border:"none",padding:"6px 14px",borderRadius:"3px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace",fontWeight:"700"}}>SEND + NOTIFY</button>
       </div>}
       {clarLogOpen&&ex.length>0&&<div style={{marginTop:"8px"}}>
-        {ex.map(n=><div key={n.id} style={{background:"#151500",border:`1px solid ${C.orange}33`,borderRadius:"3px",padding:"10px",marginBottom:"6px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:"4px"}}>
-            <div style={{fontSize:"11px",color:C.orange}}>Q: {n.q}</div>
-            <span style={{fontSize:"9px",color:C.g5,fontFamily:"monospace"}}>{new Date(n.ts).toLocaleDateString()}</span>
+        {ex.map((n,idx)=><div key={n.id} style={{background:"#151500",border:`1px solid ${C.orange}33`,borderRadius:"3px",padding:"10px",marginBottom:"6px"}}>
+          <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",marginBottom:"4px"}}>ROUND {idx+1} OF {MAX_ROUNDS}</div>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:"4px",gap:"8px"}}>
+            <div>
+              <div style={{fontSize:"9px",color:C.orange,fontFamily:"monospace",marginBottom:"2px"}}>FROM: {n.from||"Design Team"}</div>
+              <div style={{fontSize:"12px",color:C.w}}>{n.q}</div>
+            </div>
+            <span style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",flexShrink:0}}>{new Date(n.ts).toLocaleDateString()}</span>
           </div>
           {n.answered
-            ?<div style={{display:"flex",justifyContent:"space-between"}}>
-                <div style={{fontSize:"11px",color:C.lime}}>A: {n.answer}</div>
-                {n.answerTs&&<span style={{fontSize:"9px",color:C.g5,fontFamily:"monospace"}}>{new Date(n.answerTs).toLocaleDateString()}</span>}
+            ?<div style={{marginTop:"6px",paddingTop:"6px",borderTop:`1px solid ${C.bor}`}}>
+                <div style={{fontSize:"9px",color:C.lime,fontFamily:"monospace",marginBottom:"2px"}}>FROM: {n.answerFrom||"Requestor"}</div>
+                <div style={{display:"flex",justifyContent:"space-between",gap:"8px"}}>
+                  <div style={{fontSize:"12px",color:C.lime}}>{n.answer}</div>
+                  {n.answerTs&&<span style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",flexShrink:0}}>{new Date(n.answerTs).toLocaleDateString()}</span>}
+                </div>
               </div>
-            :<div style={{display:"flex",gap:"5px",marginTop:"4px"}}>
-              <input id={"ans-"+n.id} placeholder="Enter answer..." style={{flex:1,background:"transparent",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"5px 8px",outline:"none"}}/>
-              <button type="button" onClick={()=>answer(fid,n.id,document.getElementById("ans-"+n.id).value)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"5px 10px",borderRadius:"3px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",fontWeight:"700"}}>OK</button>
+            :<div style={{marginTop:"6px",paddingTop:"6px",borderTop:`1px solid ${C.bor}`}}>
+              <div style={{fontSize:"9px",color:C.lime,fontFamily:"monospace",marginBottom:"4px"}}>FROM: {isDesigner?brief.requestorName||"Requestor":"Design Team"}</div>
+              <div style={{display:"flex",gap:"5px"}}>
+                <input
+                  value={answerDrafts[n.id]||""}
+                  onChange={e=>setAnswerDrafts(d=>({...d,[n.id]:e.target.value}))}
+                  placeholder="Enter answer..."
+                  style={{flex:1,background:"transparent",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"5px 8px",outline:"none"}}
+                />
+                <button type="button" onClick={()=>answer(fid,n.id)} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"5px 10px",borderRadius:"3px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",fontWeight:"700"}}>OK</button>
+              </div>
             </div>}
         </div>)}
       </div>}
@@ -970,7 +1008,7 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
           {brief.cbNumber&&<span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</span>}
           <h1 style={{fontSize:"32px",fontWeight:"800",color:C.w,letterSpacing:"-0.01em"}}>{brief.campaignName}</h1>
         </div>
-        <p style={{color:C.g5,fontSize:"12px",fontFamily:"monospace"}}>Submitted by {brief.requestorName} · {new Date(brief.submittedAt).toLocaleString()}</p>
+        <p style={{color:C.g5,fontSize:"12px",fontFamily:"monospace"}}>Submitted by {brief.requestorName}{brief.requestorTitle?` · ${brief.requestorTitle}`:""} · {new Date(brief.submittedAt).toLocaleString()}</p>
         {brief.campaignType&&<span style={{marginTop:"8px",display:"inline-block",background:`${C.blue}22`,border:`1px solid ${C.blue}55`,color:C.blue,padding:"3px 10px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{brief.campaignType}</span>}
       </div>
       {isDesigner&&<AIBadge eligibility={aiEligibility}/>}
@@ -984,6 +1022,7 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
 
       <S t="Ownership">
         <R label="Requestor" val={brief.requestorName}/>
+        {brief.requestorTitle&&<R label="Title" val={brief.requestorTitle}/>}
         <R label="Email" val={brief.requestorEmail}/>
       </S>
       <S t="Objective"><R label="Business Objective" val={brief.businessObjective}/></S>
@@ -1002,6 +1041,7 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
         )}
         {r.type==="url"&&r.url&&<a href={r.url} target="_blank" rel="noreferrer" style={{color:"#50A8FF",fontSize:"12px",fontFamily:"monospace",display:"block",marginBottom:"6px"}}>{r.url}</a>}
         {r.likeBecause&&<div style={{fontSize:"11px",color:C.g3}}>Likes: {r.likeBecause}</div>}
+        {r.avoid&&<div style={{fontSize:"11px",color:C.red,marginTop:"3px"}}>Do not copy: {r.avoid}</div>}
       </div>)}</S>}
 
       <S t="Direction"><R label="Locked" val={brief.lockedElements}/><R label="Open" val={brief.openForExploration}/></S>
@@ -1024,61 +1064,85 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
 }
 
 /* ─── DASHBOARD ─── */
-function Dashboard({briefs,onNew,onView,onStatus,role,setRole}){
+function Dashboard({briefs,onNew,onView,onStatus,role}){
   const isDesigner=role==="designer";
+  const [filter,setFilter]=useState("all"); // "all"|"New Brief"|"In Progress"|"Needs Clarification"|"Archived"
+  const [showArchived,setShowArchived]=useState(false);
+
+  const active=briefs.filter(b=>b.status!=="Archived");
+  const archived=briefs.filter(b=>b.status==="Archived");
+
   const cnt=s=>briefs.filter(b=>b.status===s).length;
-  const stats=[["New Briefs","New Brief",C.lime],["In Progress","In Progress",C.blue],["Needs Clarification","Needs Clarification",C.orange],["Closed","Closed",C.g5]];
+  const stats=[
+    {label:"New Briefs",key:"New Brief",color:C.lime},
+    {label:"In Progress",key:"In Progress",color:C.blue},
+    {label:"Needs Clarification",key:"Needs Clarification",color:C.orange},
+    {label:"Archived",key:"Archived",color:C.g5},
+  ];
+
+  const displayed=showArchived
+    ? archived
+    : filter==="all" ? active : active.filter(b=>b.status===filter);
+
   return<div style={{maxWidth:"900px",margin:"0 auto"}}>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"32px"}}>
-      {stats.map(([l,k,c])=><div key={k} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 20px"}}>
-        <div style={{fontSize:"26px",fontWeight:"800",color:c,marginBottom:"4px"}}>{cnt(k)}</div>
-        <div style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.08em"}}>{l.toUpperCase()}</div>
-      </div>)}
-    </div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
-      <h2 style={{fontSize:"18px",fontWeight:"700",color:C.w}}>All Briefs</h2>
-      <button onClick={onNew} style={{background:C.lime,color:"#0F0F0F",border:"none",padding:"10px 22px",fontSize:"13px",fontWeight:"700",cursor:"pointer",borderRadius:"3px"}}>+ New Brief</button>
-    </div>
-    {briefs.length===0?<div style={{border:`2px dashed ${C.bor}`,borderRadius:"4px",padding:"80px",textAlign:"center"}}>
-      <div style={{fontSize:"36px",marginBottom:"12px"}}>📋</div>
-      <p style={{color:C.g5,fontSize:"13px",fontFamily:"monospace",marginBottom:"20px"}}>No briefs yet.</p>
-      <button onClick={onNew} style={{background:"transparent",border:`1.5px solid ${C.lime}`,color:C.lime,padding:"10px 24px",cursor:"pointer",fontSize:"13px",fontWeight:"600",borderRadius:"3px"}}>Start a Brief</button>
-    </div>
-    :<div style={{display:"grid",gap:"8px"}}>
-      {briefs.map(b=>{
-        const aiEl=b.aiEligibility||computeAIEligibility(b);
-        const tierMeta=AI_TIER_META[aiEl?.level]||AI_TIER_META.blocked;
-        return<div key={b.id} onClick={()=>onView(b)} style={{background:C.sur,border:`1.5px solid ${C.bor}`,borderRadius:"4px",padding:"18px 22px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"stretch",gap:"20px"}}>
-          {/* LEFT */}
-          <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:"7px"}}>
-            {/* Row 1: CB# + Campaign Name */}
-            <div style={{display:"flex",alignItems:"baseline",gap:"9px"}}>
-              {b.cbNumber&&<span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",flexShrink:0,letterSpacing:"0.05em"}}>{formatCB(b.cbNumber)}</span>}
-              <span style={{fontSize:"16px",fontWeight:"700",color:C.w,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.campaignName}</span>
-            </div>
-            {/* Row 2: Campaign Type */}
-            {b.campaignType&&<div>
-              <span style={{fontSize:"10px",color:C.blue,fontFamily:"monospace",border:`1px solid ${C.blue}33`,padding:"2px 8px",borderRadius:"2px",background:`${C.blue}0A`}}>{b.campaignType}</span>
-            </div>}
-            {/* Row 3: One-line description */}
-            <p style={{fontSize:"12px",color:C.g3,lineHeight:"1.5",margin:0,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:1,WebkitBoxOrient:"vertical"}}>{b.problemStatement}</p>
-            {/* Row 4: Deliverables */}
-            <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
-              {b.assetTypes?.slice(0,5).map(a=><span key={a} style={{background:C.g7,color:C.g5,padding:"2px 7px",fontSize:"10px",fontFamily:"monospace",borderRadius:"2px"}}>{a}</span>)}
-            </div>
-          </div>
-          {/* RIGHT */}
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"space-between",flexShrink:0,gap:"10px"}} onClick={e=>e.stopPropagation()}>
-            <StatusToggle cur={b.status||"New Brief"} onChange={s=>onStatus(b.id,s)}/>
-            {isDesigner&&<div style={{textAlign:"right"}}>
-              <div style={{fontSize:"9px",color:C.g5,fontFamily:"monospace",letterSpacing:"0.1em",marginBottom:"3px"}}>AI ASSIST SCORE</div>
-              <div style={{fontSize:"11px",fontWeight:"700",color:tierMeta.color,fontFamily:"monospace"}}>{aiEl.label}</div>
-            </div>}
-            <span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace"}}>{new Date(b.submittedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
-          </div>
+    {/* Stat boxes — clickable filters */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"10px",marginBottom:"28px"}}>
+      {stats.map(({label,key,color})=>{
+        const isArchived=key==="Archived";
+        const active2=isArchived?showArchived:(filter===key&&!showArchived);
+        return<div key={key} onClick={()=>{
+          if(isArchived){setShowArchived(s=>!s);setFilter("all");}
+          else{setShowArchived(false);setFilter(f=>f===key?"all":key);}
+        }} style={{background:active2?`${color}18`:C.sur,border:`1.5px solid ${active2?color:C.bor}`,borderRadius:"4px",padding:"16px 18px",cursor:"pointer",transition:"all 0.15s"}}>
+          <div style={{fontSize:"28px",fontWeight:"800",color,marginBottom:"3px",fontFamily:"monospace"}}>{cnt(key)}</div>
+          <div style={{fontSize:"10px",color:active2?color:C.g5,fontFamily:"monospace",letterSpacing:"0.08em"}}>{label.toUpperCase()}</div>
         </div>;
       })}
-    </div>}
+    </div>
+
+    {/* Section header */}
+    <div style={{display:"flex",alignItems:"center",marginBottom:"16px",gap:"10px"}}>
+      <h2 style={{fontSize:"15px",fontWeight:"700",color:C.w,fontFamily:"monospace"}}>
+        {showArchived?"ARCHIVED BRIEFS":filter==="all"?"ALL BRIEFS":filter.toUpperCase()}
+      </h2>
+      <span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>({displayed.length})</span>
+      {(filter!=="all"||showArchived)&&<button onClick={()=>{setFilter("all");setShowArchived(false);}} style={{background:"transparent",border:"none",color:C.g5,cursor:"pointer",fontSize:"10px",fontFamily:"monospace"}}>clear ×</button>}
+    </div>
+
+    {displayed.length===0
+      ?<div style={{border:`2px dashed ${C.bor}`,borderRadius:"4px",padding:"60px",textAlign:"center"}}>
+        <p style={{color:C.g5,fontSize:"13px",fontFamily:"monospace"}}>{showArchived?"No archived briefs.":"No briefs in this state."}</p>
+      </div>
+      :<div style={{display:"flex",flexDirection:"column",gap:"1px",border:`1px solid ${C.bor}`,borderRadius:"4px",overflow:"hidden"}}>
+        {displayed.map(b=>{
+          const aiEl=b.aiEligibility||computeAIEligibility(b);
+          const tierMeta=AI_TIER_META[aiEl?.level]||AI_TIER_META.blocked;
+          const statusColor=SCOL[b.status||"New Brief"]||C.g5;
+          return<div key={b.id} onClick={()=>onView(b)} style={{background:C.sur,padding:"14px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:"16px",borderBottom:`1px solid ${C.bor}`}}>
+            {/* CB# */}
+            <span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",flexShrink:0,width:"40px"}}>{b.cbNumber?formatCB(b.cbNumber):""}</span>
+            {/* Status dot */}
+            <div style={{width:"7px",height:"7px",borderRadius:"50%",background:statusColor,flexShrink:0}}/>
+            {/* Main content */}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"baseline",gap:"10px",marginBottom:"3px"}}>
+                <span style={{fontSize:"14px",fontWeight:"700",color:C.w,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.campaignName}</span>
+                {b.campaignType&&<span style={{fontSize:"10px",color:C.blue,flexShrink:0}}>{b.campaignType}</span>}
+              </div>
+              <p style={{fontSize:"12px",color:C.g5,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.problemStatement}</p>
+            </div>
+            {/* Right side */}
+            <div style={{display:"flex",alignItems:"center",gap:"16px",flexShrink:0}} onClick={e=>e.stopPropagation()}>
+              {b.assetTypes?.length>0&&<div style={{display:"flex",gap:"4px"}}>
+                {b.assetTypes.slice(0,3).map(a=><span key={a} style={{fontSize:"10px",color:C.g5,fontFamily:"monospace"}}>{a}</span>)}
+              </div>}
+              {isDesigner&&<span style={{fontSize:"10px",color:tierMeta.color,fontFamily:"monospace",width:"80px",textAlign:"right"}}>{aiEl.label.replace(" AI Assist","").replace("Human-Only Design","Human")}</span>}
+              <span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",width:"40px",textAlign:"right"}}>{new Date(b.submittedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
+              <StatusToggle cur={b.status||"New Brief"} onChange={s=>onStatus(b.id,s)}/>
+            </div>
+          </div>;
+        })}
+      </div>}
   </div>;
 }
 
@@ -1130,7 +1194,7 @@ export default function App(){
       <div style={{height:"3px",background:`linear-gradient(90deg,${C.blue},#50A8FF,${C.blue})`}}/>
       <div style={{minHeight:"calc(100vh - 55px)"}}>
         {screen==="form"&&<WizardView onSubmit={submit} briefCount={briefs.length} isDesigner={role==="designer"}/>}
-        {screen==="dashboard"&&!sel&&<div style={{padding:"44px 36px"}}><Dashboard briefs={briefs} onNew={()=>setScreen("form")} onView={b=>setSel(b)} onStatus={onStatus} role={role} setRole={setRole}/></div>}
+        {screen==="dashboard"&&!sel&&<div style={{padding:"44px 36px"}}><Dashboard briefs={briefs} onNew={()=>setScreen("form")} onView={b=>setSel(b)} onStatus={onStatus} role={role}/></div>}
         {screen==="dashboard"&&sel&&<div style={{padding:"44px 36px"}}><BriefDetail brief={sel} onBack={()=>setSel(null)} onUpdate={onUpdate} isDesigner={role==="designer"}/></div>}
       </div>
     </div>
