@@ -1095,10 +1095,6 @@ export default function App(){
     <div style={{minHeight:"100vh",background:C.bg,color:C.w,fontFamily:"'DM Sans',sans-serif"}}>
       <header style={{background:"#111",borderBottom:`1px solid ${C.bor}`,height:"52px",padding:"0 28px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:200}}>
         <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px",width:"14px",height:"14px"}}>
-            <div style={{background:"#F35325",borderRadius:"1px"}}/><div style={{background:"#81BC06",borderRadius:"1px"}}/>
-            <div style={{background:"#05A6F0",borderRadius:"1px"}}/><div style={{background:"#FFBA08",borderRadius:"1px"}}/>
-          </div>
           <div style={{width:"1px",height:"16px",background:C.bor}}/>
           <span style={{fontSize:"12px",fontWeight:"600",color:C.g3,letterSpacing:"0.1em",fontFamily:"monospace"}}>
             CREATIVE BRIEF TRANSLATOR <span style={{color:C.lime}}>(CBT)</span>
