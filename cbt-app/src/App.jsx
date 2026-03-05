@@ -8,7 +8,7 @@ const C = {
 };
 const STATUSES=["New Brief","In Progress","Needs Clarification","Archived"];
 const SCOL={"New Brief":C.lime,"In Progress":C.blue,"Needs Clarification":C.orange,"Archived":C.g5};
-const SNAMES=["","Ownership","Objective","Scope","Audience","Message","References","Direction","Guardrails","Criteria","Deliverables"];
+const SNAMES=["","Who & What","Scope & Audience","Message & Direction","References","Deliverables"];
 const LIKE_OPTS=["First-frame clarity","Pacing","Visual hierarchy","Tone","Emotional payoff","Simplicity","Other"];
 
 /* ─── CAMPAIGN TYPE OPTIONS ─── */
@@ -71,32 +71,37 @@ const SENSITIVE_CONSTRAINT_OPTS = [
 ];
 
 const FIELDS=[
+  // Screen 1 — Who & What
   {id:"requestorName",s:1,q:"Who is submitting this brief?",t:"text",ph:"Your full name",req:true},
   {id:"requestorTitle",s:1,q:"Title",t:"text",ph:"e.g. Senior Brand Manager",req:false},
   {id:"requestorEmail",s:1,q:"Email address",t:"text",ph:"your@email.com",req:true},
   {id:"campaignName",s:1,q:"Campaign / Project Name",t:"text",ph:"e.g. Surface Pro Q3 Launch",req:true},
   {id:"campaignType",s:1,q:"Campaign Type",t:"campaignType",req:true},
-  {id:"businessObjective",s:2,q:"Primary business objective?",t:"multi",req:true,opts:["Increase understanding","Change perception","Drive action","Support existing campaign","Other"],otherKey:"businessObjectiveOther"},
-  {id:"problemStatement",s:2,q:"The Creative Request",t:"textarea",ph:"What gap, barrier, or tension are we resolving?",req:true},
-  {id:"decisionType",s:3,q:"What decision is needed from Design?",t:"single",req:true,opts:["Exploratory concepts","Single recommended direction","Iteration on existing work","Execution of pre-approved direction","Resize / adapt existing assets"]},
-  {id:"conceptCount",s:3,q:"How many concepts are expected?",t:"single",req:true,opts:["1 strong direction","2-3 distinct approaches","Iterations on 1 existing concept","Align in review"]},
-  {id:"primaryAudience",s:4,q:"Who is the primary audience?",t:"text",ph:"e.g. SMB IT decision-makers, 35-54",req:true},
-  {id:"audienceType",s:4,q:"How is this audience defined?",t:"single",req:true,
+  {id:"businessObjective",s:1,q:"Primary business objective?",t:"multi",req:true,opts:["Increase understanding","Change perception","Drive action","Support existing campaign","Other"],otherKey:"businessObjectiveOther"},
+  {id:"problemStatement",s:1,q:"The Creative Request",t:"textarea",ph:"What gap, barrier, or tension are we resolving?",req:true},
+  // Screen 2 — Scope & Audience
+  {id:"decisionType",s:2,q:"What decision is needed from Design?",t:"single",req:true,opts:["Exploratory concepts","Single recommended direction","Iteration on existing work","Execution of pre-approved direction","Resize / adapt existing assets"]},
+  {id:"conceptCount",s:2,q:"How many concepts are expected?",t:"single",req:true,opts:["1 strong direction","2-3 distinct approaches","Iterations on 1 existing concept","Align in review"]},
+  {id:"primaryAudience",s:2,q:"Who is the primary audience?",t:"text",ph:"e.g. SMB IT decision-makers, 35-54",req:true},
+  {id:"audienceType",s:2,q:"How is this audience defined?",t:"single",req:true,
     opts:["Persona / segment-based (no hard demographic data)","Demographic data available (age range, income, etc.)","Both persona and demographic data available"],
     hint:"This helps us understand how grounded the audience definition is."},
-  {id:"messageTypes",s:5,q:"What type of message is this?",t:"multi",req:true,opts:["Product capability","Benefit-led","Proof / credibility","Emotional / cultural","Mixed"]},
-  {id:"productTruthSource",s:5,q:"What is the source of product truth?",t:"single",req:true,opts:["Approved product documentation","Existing campaign / system","PM or Marketing alignment","Other"],otherKey:"productTruthOther"},
-  {id:"references",s:6,q:"Reference examples",t:"refs",req:false},
-  {id:"lockedElements",s:7,q:"What is already decided and locked?",t:"multi",req:true,opts:["Messaging","Brand system","CTA","Product positioning","Other"],otherKey:"lockedElementsOther"},
-  {id:"openForExploration",s:7,q:"What is open for creative exploration?",t:"multi",req:true,opts:["Visual approach","Tone","Narrative","Metaphor vs. literal","Other"],otherKey:"openForExplorationOther"},
-  {id:"finalMustInclude",s:8,q:"What must appear in the final design?",t:"multi",req:true,opts:["Logo","Product name","CTA","Legal","Accessibility","Other"],otherKey:"finalMustIncludeOther"},
-  {id:"sensitiveConstraints",s:8,q:"Does this brief contain any sensitive constraints?",t:"sensitiveConstraints",req:true,
-    hint:"Select all that apply. This replaces keyword guessing — be explicit so Design can route correctly."},
-  {id:"assetTypes",s:10,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther",systemHint:"Reusable visual or messaging architecture intended to scale across multiple formats, campaigns, or time periods — not a one-off asset set."},
-  {id:"staticSizes",s:10,q:"Static sizes",t:"staticSizes",req:true,showIf:f=>f.assetTypes?.includes("Static")},
-  {id:"videoDuration",s:10,q:"Video duration(s)",t:"videoDuration",req:true,showIf:f=>f.assetTypes?.includes("Video")},
-  {id:"videoPurpose",s:10,q:"Video purpose",t:"videoPurpose",req:true,showIf:f=>f.assetTypes?.includes("Video")},
-  {id:"channels",s:10,q:"Which channels will this run on?",t:"channels",req:true},
+  // Screen 3 — Message & Direction
+  {id:"messageTypes",s:3,q:"What type of message is this?",t:"multi",req:true,opts:["Product capability","Benefit-led","Proof / credibility","Emotional / cultural","Mixed"]},
+  {id:"productTruthSource",s:3,q:"What is the source of product truth?",t:"single",req:true,opts:["Approved product documentation","Existing campaign / system","PM or Marketing alignment","Other"],otherKey:"productTruthOther"},
+  {id:"lockedElements",s:3,q:"What is already decided and locked?",t:"multi",req:true,opts:["Messaging","Brand system","CTA","Product positioning","Other"],otherKey:"lockedElementsOther"},
+  {id:"openForExploration",s:3,q:"What is open for creative exploration?",t:"multi",req:true,opts:["Visual approach","Tone","Narrative","Metaphor vs. literal","Other"],otherKey:"openForExplorationOther"},
+  {id:"finalMustInclude",s:3,q:"What must appear in the final design?",t:"multi",req:true,opts:["Logo","Product name","CTA","Legal","Accessibility","Other"],otherKey:"finalMustIncludeOther"},
+  {id:"sensitiveConstraints",s:3,q:"Does this brief contain any sensitive constraints?",t:"sensitiveConstraints",req:true,
+    hint:"Select all that apply. This field directly informs AI routing — be explicit."},
+  // Screen 4 — References
+  {id:"references",s:4,q:"Reference examples",t:"refs",req:false},
+  // Screen 5 — Deliverables
+  {id:"assetTypes",s:5,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther",systemHint:"Reusable visual or messaging architecture intended to scale across multiple formats, campaigns, or time periods — not a one-off asset set."},
+  {id:"staticSizes",s:5,q:"Static sizes",t:"staticSizes",req:true,showIf:f=>f.assetTypes?.includes("Static")},
+  {id:"videoDuration",s:5,q:"Video duration(s)",t:"videoDuration",req:true,showIf:f=>f.assetTypes?.includes("Video")},
+  {id:"videoPurpose",s:5,q:"Video purpose",t:"videoPurpose",req:true,showIf:f=>f.assetTypes?.includes("Video")},
+  {id:"channels",s:5,q:"Which channels will this run on?",t:"channels",req:true},
 ];
 
 const PLATFORMS=["Instagram","TikTok","X","YouTube","LinkedIn","Other"];
@@ -379,7 +384,6 @@ function useWizard(){
           }
         }
       }
-      else if(f.t==="successCriteria"){const sc=form.successCriteria||[];if(!sc.length)return false;if(sc.includes("Other")&&!form.successCriteriaOther?.trim())return false;}
       else if(f.t==="sensitiveConstraints"){const sc=normaliseMaybeArr(form.sensitiveConstraints);if(!sc.length)return false;}
       else if(f.t==="staticSizes"){const ss=Array.isArray(form.staticSizes)?form.staticSizes:[];if(!ss.length)return false;if(ss.includes("Other")&&!form.staticSizesOther?.trim())return false;}
       else if(f.t==="videoDuration"){if(!form.videoDuration)return false;}
