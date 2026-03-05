@@ -361,35 +361,50 @@ function useWizard(){
   const pos=secs.indexOf(sec);
   const prog=secs.length>1?Math.round(pos/(secs.length-1)*100):0;
   const ok=()=>{
-    // Always validate refs section: any added ref must have likeBecause and avoid filled
-    const refs=normaliseMaybeArr(form.references);
-    if(refs.length>0 && cur.some(f=>f.t==="refs")){
-      for(const r of refs){if(!r.likeBecause?.trim()||!r.avoid?.trim())return false;}
-    }
     for(const f of cur){
-      if(!f.req)continue;
       const v=form[f.id];
-      if(f.t==="multi"){if(!Array.isArray(v)||!v.length)return false;if(f.otherKey&&v.includes("Other")&&!form[f.otherKey]?.trim())return false;}
-      else if(f.t==="single"){if(!v)return false;if(f.otherKey&&v==="Other"&&!form[f.otherKey]?.trim())return false;}
-      else if(f.t==="campaignType"){
-        if(!form.campaignType)return false;
-        if(form.campaignType==="Other"&&!form.campaignTypeOther?.trim())return false;
-        // Validate existing assets sub-fields when mode is required
+      // References: optional section — only validate if refs were added
+      if(f.t==="refs"){
+        const refs=normaliseMaybeArr(form.references);
+        for(const r of refs){if(!r.likeBecause?.trim()||!r.avoid?.trim())return false;}
+        continue;
+      }
+      // Channels: required but no deep validation needed here
+      if(f.t==="channels") continue;
+      // Skip non-required fields
+      if(!f.req) continue;
+      // Type-specific checks
+      if(f.t==="text"||f.t==="textarea"){
+        if(!v||!v.toString().trim()) return false;
+      } else if(f.t==="single"){
+        if(!v) return false;
+        if(f.otherKey&&v==="Other"&&!form[f.otherKey]?.trim()) return false;
+      } else if(f.t==="multi"){
+        const arr=Array.isArray(v)?v:[];
+        if(!arr.length) return false;
+        if(f.otherKey&&arr.includes("Other")&&!form[f.otherKey]?.trim()) return false;
+      } else if(f.t==="campaignType"){
+        if(!form.campaignType) return false;
+        if(form.campaignType==="Other"&&!form.campaignTypeOther?.trim()) return false;
         const mode=showExistingAssets(form.campaignType);
         if(mode==="required"){
-          if(!form.existingAssetsAvail)return false;
+          if(!form.existingAssetsAvail) return false;
           if(form.existingAssetsAvail==="Yes — required to upload or link"){
-            if(!form.existingAssetsUrl?.trim()&&!form.existingAssetsFile)return false;
-            if(!form.existingAssetsNotes?.trim())return false;
+            if(!form.existingAssetsUrl?.trim()&&!form.existingAssetsFile) return false;
+            if(!form.existingAssetsNotes?.trim()) return false;
           }
         }
+      } else if(f.t==="sensitiveConstraints"){
+        if(!normaliseMaybeArr(form.sensitiveConstraints).length) return false;
+      } else if(f.t==="staticSizes"){
+        const ss=Array.isArray(form.staticSizes)?form.staticSizes:[];
+        if(!ss.length) return false;
+        if(ss.includes("Other")&&!form.staticSizesOther?.trim()) return false;
+      } else if(f.t==="videoDuration"){
+        if(!form.videoDuration) return false;
+      } else if(f.t==="videoPurpose"){
+        if(!form.videoPurpose) return false;
       }
-      else if(f.t==="sensitiveConstraints"){const sc=normaliseMaybeArr(form.sensitiveConstraints);if(!sc.length)return false;}
-      else if(f.t==="staticSizes"){const ss=Array.isArray(form.staticSizes)?form.staticSizes:[];if(!ss.length)return false;if(ss.includes("Other")&&!form.staticSizesOther?.trim())return false;}
-      else if(f.t==="videoDuration"){if(!form.videoDuration)return false;}
-      else if(f.t==="videoPurpose"){if(!form.videoPurpose)return false;}
-      else if(f.t==="refs"||f.t==="channels"){}
-      else if(!v?.toString().trim())return false;
     }
     return true;
   };
@@ -833,22 +848,10 @@ function WizardView({onSubmit,briefCount,isDesigner}){
         {!w.isF
           ?<button onClick={()=>go(w.prev)} style={{background:"transparent",border:`1.5px solid ${C.lime}55`,color:C.lime,padding:"12px 28px",cursor:"pointer",fontSize:"14px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
           :<div/>}
-        <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
-          <span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>
-            {w.cur.filter(f=>f.req).map(f=>{
-              const v=w.form[f.id];
-              const ok=f.t==="multi"?(Array.isArray(v)&&v.length>0):
-                f.t==="campaignType"?!!w.form.campaignType:
-                f.t==="sensitiveConstraints"?(normaliseMaybeArr(w.form.sensitiveConstraints).length>0):
-                f.t==="textarea"||f.t==="text"?!!v?.toString().trim():!!v;
-              return ok?null:<span key={f.id} style={{color:C.orange,marginRight:"8px"}}>{f.id}✗</span>;
-            })}
-          </span>
-          {w.isL
-            ?<button onClick={submit} disabled={!w.canContinue} style={{background:w.canContinue?C.lime:C.g7,color:w.canContinue?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.canContinue?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
-            :<button onClick={()=>go(w.next)} disabled={!w.canContinue} style={{background:w.canContinue?C.lime:C.g7,color:w.canContinue?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.canContinue?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
-          }
-        </div>
+        {w.isL
+          ?<button onClick={submit} disabled={!w.canContinue} style={{background:w.canContinue?C.lime:C.g7,color:w.canContinue?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.canContinue?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
+          :<button onClick={()=>go(w.next)} disabled={!w.canContinue} style={{background:w.canContinue?C.lime:C.g7,color:w.canContinue?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.canContinue?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
+        }
       </div>
     </div>
   </div>);
