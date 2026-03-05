@@ -90,12 +90,10 @@ const FIELDS=[
   {id:"lockedElements",s:7,q:"What is already decided and locked?",t:"multi",req:true,opts:["Messaging","Brand system","CTA","Product positioning","Other"],otherKey:"lockedElementsOther"},
   {id:"openForExploration",s:7,q:"What is open for creative exploration?",t:"multi",req:true,opts:["Visual approach","Tone","Narrative","Metaphor vs. literal","Other"],otherKey:"openForExplorationOther"},
   {id:"finalMustInclude",s:8,q:"What must appear in the final design?",t:"multi",req:true,opts:["Logo","Product name","CTA","Legal","Accessibility","Other"],otherKey:"finalMustIncludeOther"},
-  {id:"mustAvoid",s:8,q:"What is explicitly off-limits?",t:"textarea",ph:"Styles, references, language, or approaches to avoid...",req:true},
   {id:"sensitiveConstraints",s:8,q:"Does this brief contain any sensitive constraints?",t:"sensitiveConstraints",req:true,
     hint:"Select all that apply. This replaces keyword guessing — be explicit so Design can route correctly."},
-  {id:"successCriteria",s:9,q:"How will success be evaluated?",t:"successCriteria",req:true},
   {id:"assetTypes",s:10,q:"What asset types are needed?",t:"multi",req:true,opts:["Static","Carousel","Video","System","Other"],otherKey:"assetOther",systemHint:"Reusable visual or messaging architecture intended to scale across multiple formats, campaigns, or time periods — not a one-off asset set."},
-  {id:"staticSizes",s:10,q:"Static sizes",t:"text",ph:"e.g. 1080x1080, 1200x628",req:true,showIf:f=>f.assetTypes?.includes("Static")},
+  {id:"staticSizes",s:10,q:"Static sizes",t:"staticSizes",req:true,showIf:f=>f.assetTypes?.includes("Static")},
   {id:"videoDuration",s:10,q:"Video duration(s)",t:"videoDuration",req:true,showIf:f=>f.assetTypes?.includes("Video")},
   {id:"videoPurpose",s:10,q:"Video purpose",t:"videoPurpose",req:true,showIf:f=>f.assetTypes?.includes("Video")},
   {id:"channels",s:10,q:"Which channels will this run on?",t:"channels",req:true},
@@ -383,6 +381,7 @@ function useWizard(){
       }
       else if(f.t==="successCriteria"){const sc=form.successCriteria||[];if(!sc.length)return false;if(sc.includes("Other")&&!form.successCriteriaOther?.trim())return false;}
       else if(f.t==="sensitiveConstraints"){const sc=normaliseMaybeArr(form.sensitiveConstraints);if(!sc.length)return false;}
+      else if(f.t==="staticSizes"){const ss=Array.isArray(form.staticSizes)?form.staticSizes:[];if(!ss.length)return false;if(ss.includes("Other")&&!form.staticSizesOther?.trim())return false;}
       else if(f.t==="videoDuration"){if(!form.videoDuration)return false;}
       else if(f.t==="videoPurpose"){if(!form.videoPurpose)return false;}
       else if(f.t==="refs"||f.t==="channels"){}
@@ -481,17 +480,17 @@ function RefsField({form,set}){
   return<div>
     <Ql q="Reference examples" req={false}/>
     <Qh hint="Optional. Add URLs or file uploads with notes on what you like."/>
-    {refs.map((ref,i)=><div key={ref.id} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"4px",padding:"12px",marginBottom:"8px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px"}}>
-        <span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>REF {i+1}</span>
-        <button type="button" onClick={()=>del(ref.id)} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:"11px"}}>x remove</button>
+    {refs.map((ref,i)=><div key={ref.id} style={{background:"#151515",border:`1px solid ${C.bor}`,borderRadius:"6px",padding:"24px",marginBottom:"16px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:"14px"}}>
+        <span style={{fontSize:"13px",color:C.g3,fontFamily:"monospace",fontWeight:"600"}}>REF {i+1}</span>
+        <button type="button" onClick={()=>del(ref.id)} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:"13px"}}>× remove</button>
       </div>
-      <div style={{display:"flex",gap:"4px",marginBottom:"8px"}}>
-        {["url","file"].map(t=><button key={t} type="button" onClick={()=>upd(ref.id,{type:t})} style={{background:ref.type===t?C.lime:"transparent",border:`1px solid ${ref.type===t?C.lime:C.bor}`,color:ref.type===t?"#0F0F0F":C.g3,padding:"4px 10px",borderRadius:"2px",cursor:"pointer",fontSize:"10px",fontFamily:"monospace",fontWeight:ref.type===t?"700":"400"}}>{t.toUpperCase()}</button>)}
+      <div style={{display:"flex",gap:"6px",marginBottom:"14px"}}>
+        {["url","file"].map(t=><button key={t} type="button" onClick={()=>upd(ref.id,{type:t})} style={{background:ref.type===t?C.lime:"transparent",border:`1.5px solid ${ref.type===t?C.lime:C.bor}`,color:ref.type===t?"#0F0F0F":C.g3,padding:"6px 16px",borderRadius:"3px",cursor:"pointer",fontSize:"12px",fontFamily:"monospace",fontWeight:ref.type===t?"700":"400"}}>{t.toUpperCase()}</button>)}
       </div>
-      {ref.type==="url"&&<input value={ref.url} onChange={e=>upd(ref.id,{url:e.target.value})} placeholder="https://..." style={{...ul(!!ref.url),fontSize:"13px",marginBottom:"8px"}}/>}
-      {ref.type==="file"&&<label style={{display:"flex",alignItems:"center",gap:"8px",border:`1.5px dashed ${ref.file?C.lime:C.bor}`,borderRadius:"3px",padding:"10px",cursor:"pointer",marginBottom:"8px"}}>
-        <span style={{fontSize:"12px",color:ref.file?C.lime:C.g3}}>{ref.file?ref.file.name:"Click to upload (max 10MB)"}</span>
+      {ref.type==="url"&&<input value={ref.url} onChange={e=>upd(ref.id,{url:e.target.value})} placeholder="https://..." style={{...ul(!!ref.url),fontSize:"15px",marginBottom:"14px"}}/>}
+      {ref.type==="file"&&<label style={{display:"flex",alignItems:"center",gap:"10px",border:`1.5px dashed ${ref.file?C.lime:C.bor}`,borderRadius:"4px",padding:"14px",cursor:"pointer",marginBottom:"14px"}}>
+        <span style={{fontSize:"14px",color:ref.file?C.lime:C.g3}}>{ref.file?ref.file.name:"Click to upload (max 10MB)"}</span>
         <input type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.mp4,.pptx" onChange={e=>{
           if(e.target.files[0]){
             const file=e.target.files[0];
@@ -501,18 +500,18 @@ function RefsField({form,set}){
           }
         }} style={{display:"none"}}/>
       </label>}
-      <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+      <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
         <div>
-          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>WHY I LIKE THIS <span style={{color:C.lime}}>*</span></div>
-          <textarea value={ref.likeBecause||""} onChange={e=>upd(ref.id,{likeBecause:e.target.value})} placeholder="What draws you to this example..." rows={2} style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none",resize:"none"}}/>
+          <div style={{fontSize:"12px",color:C.g3,marginBottom:"8px",fontWeight:"600"}}>WHY I LIKE THIS <span style={{color:C.lime}}>*</span></div>
+          <textarea value={ref.likeBecause||""} onChange={e=>upd(ref.id,{likeBecause:e.target.value})} placeholder="What draws you to this example..." rows={3} style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"4px",color:C.w,fontSize:"15px",padding:"10px 12px",outline:"none",resize:"none",lineHeight:"1.6"}}/>
         </div>
         <div>
-          <div style={{fontSize:"10px",color:C.g5,marginBottom:"4px",fontFamily:"monospace"}}>DO NOT COPY <span style={{color:C.lime}}>*</span></div>
-          <input value={ref.avoid||""} onChange={e=>upd(ref.id,{avoid:e.target.value})} placeholder="Avoid replicating..." style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"3px",color:C.w,fontSize:"12px",padding:"6px",outline:"none"}}/>
+          <div style={{fontSize:"12px",color:C.g3,marginBottom:"8px",fontWeight:"600"}}>DO NOT COPY <span style={{color:C.lime}}>*</span></div>
+          <input value={ref.avoid||""} onChange={e=>upd(ref.id,{avoid:e.target.value})} placeholder="Avoid replicating..." style={{width:"100%",background:"#0F0F0F",border:`1px solid ${C.bor}`,borderRadius:"4px",color:C.w,fontSize:"15px",padding:"10px 12px",outline:"none"}}/>
         </div>
       </div>
     </div>)}
-    <button type="button" onClick={add} style={{width:"100%",background:"transparent",border:`1.5px dashed ${C.bor}`,color:C.lime,padding:"10px",borderRadius:"3px",cursor:"pointer",fontSize:"11px",fontFamily:"monospace"}}>+ ADD REFERENCE</button>
+    <button type="button" onClick={add} style={{width:"100%",background:"transparent",border:`1.5px dashed ${C.bor}`,color:C.lime,padding:"14px",borderRadius:"4px",cursor:"pointer",fontSize:"14px",fontFamily:"monospace"}}>+ ADD REFERENCE</button>
   </div>;
 }
 
@@ -556,6 +555,31 @@ function SensitiveConstraintsField({form,set}){
   </div>;
 }
 
+/* ─── STATIC SIZES FIELD ─── */
+const STATIC_SIZE_OPTS=["300x250","300x300","300x600","728x90","Other"];
+function StaticSizesField({form,set}){
+  const sel=Array.isArray(form.staticSizes)?form.staticSizes:form.staticSizes?[form.staticSizes]:[];
+  const tog=opt=>{
+    const next=sel.includes(opt)?sel.filter(o=>o!==opt):[...sel,opt];
+    set("staticSizes",next);
+  };
+  return<div>
+    <Ql q="Static sizes" req={true}/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginTop:"4px"}}>
+      {STATIC_SIZE_OPTS.map(o=><button key={o} type="button" onClick={()=>tog(o)}
+        style={{padding:"14px 12px",border:`1.5px solid ${sel.includes(o)?C.lime:C.bor}`,borderRadius:"4px",background:sel.includes(o)?"#D1FF9810":"transparent",color:sel.includes(o)?C.lime:C.w,cursor:"pointer",fontSize:"15px",fontWeight:sel.includes(o)?"700":"400",textAlign:"left",display:"flex",alignItems:"center",gap:"10px"}}>
+        <div style={{width:"16px",height:"16px",borderRadius:"3px",border:`2px solid ${sel.includes(o)?C.lime:C.g5}`,background:sel.includes(o)?C.lime:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          {sel.includes(o)&&<span style={{color:"#0F0F0F",fontSize:"10px",fontWeight:"900",lineHeight:1}}>✓</span>}
+        </div>
+        {o}
+      </button>)}
+    </div>
+    {sel.includes("Other")&&<div style={{marginTop:"12px"}}>
+      <input value={form.staticSizesOther||""} onChange={e=>set("staticSizesOther",e.target.value)} placeholder="e.g. 1080x1080, 1200x628" style={{...ul(!!form.staticSizesOther),fontSize:"15px"}}/>
+    </div>}
+  </div>;
+}
+
 /* ─── VIDEO DURATION FIELD ─── */
 function VideoDurationField({form,set}){
   const v=form.videoDuration;
@@ -589,7 +613,7 @@ function Field({f,form,set}){
   if(f.t==="single")return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} sel={v===o} onClick={()=>setV(o)} multi={false}/>{o==="Other"&&v==="Other"&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;
   if(f.t==="multi"){const arr=Array.isArray(v)?v:[];return<><Ql q={f.q} req={f.req}/><Qh hint={f.hint}/>{f.opts.map(o=><div key={o}><OptBtn label={o} desc={o==="System"&&f.systemHint?f.systemHint:undefined} sel={arr.includes(o)} onClick={()=>tog(o)} multi={true}/>{o==="Other"&&arr.includes("Other")&&f.otherKey&&<InlOther v={form[f.otherKey]} on={val=>set(f.otherKey,val)} textarea={true}/>}</div>)}</>;}
 
-  if(f.t==="campaignType")return<CampaignTypeField form={form} set={set}/>;
+  if(f.t==="staticSizes")return<StaticSizesField form={form} set={set}/>;
   if(f.t==="successCriteria")return<SuccessCriteriaField form={form} set={set}/>;
   if(f.t==="sensitiveConstraints")return<SensitiveConstraintsField form={form} set={set}/>;
   if(f.t==="videoDuration")return<VideoDurationField form={form} set={set}/>;
@@ -603,124 +627,99 @@ function Field({f,form,set}){
 function openBriefMeTab(brief){
   const refs=brief.references||[];
   const objs=Array.isArray(brief.businessObjective)?brief.businessObjective:[brief.businessObjective].filter(Boolean);
+  const aiEl=computeAIEligibility(brief);
 
-  const refCards=refs.map((r,i)=>{
-    let mediaSection="";
-    if(r.type==="file"&&r.fileDataUrl){
-      const isImg=/\.(png|jpg|jpeg|gif|webp)/i.test(r.file?.name||"");
-      mediaSection=isImg
-        ?`<div style="border-radius:8px;overflow:hidden;margin-bottom:16px;cursor:pointer;" onclick="document.getElementById('img-expand-${i}').style.display='flex'"><img src="${r.fileDataUrl}" style="width:100%;border-radius:8px;"/></div>
-           <div id="img-expand-${i}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;cursor:pointer;" onclick="this.style.display='none'"><img src="${r.fileDataUrl}" style="max-width:90%;max-height:90%;border-radius:8px;"/></div>`
-        :`<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:8px;padding:24px;margin-bottom:16px;display:flex;align-items:center;gap:12px;aspect-ratio:16/9;justify-content:center;"><span style="font-size:40px;">📎</span><span style="color:#D1FF98;font-family:monospace;font-size:13px;">${r.file?.name||"Uploaded file"}</span></div>`;
+  const row=(label,val)=>val?`<tr><td style="width:180px;padding:8px 16px 8px 0;vertical-align:top;font-size:13px;font-weight:700;color:#555;">${label}</td><td style="padding:8px 0;font-size:14px;color:#111;line-height:1.6;">${Array.isArray(val)?val.join(", "):val}</td></tr>`:"";
+
+  const refBlocks=refs.map((r,i)=>{
+    let media="";
+    if(r.type==="file"&&r.fileDataUrl&&/\.(png|jpg|jpeg|gif|webp)/i.test(r.file?.name||"")){
+      media=`<img src="${r.fileDataUrl}" style="width:100%;max-height:260px;object-fit:cover;margin-bottom:12px;border:1px solid #eee;"/>`;
     } else if(r.type==="url"&&r.url){
-      mediaSection=`<div style="background:#f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:16px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;">
-        <img src="https://api.microlink.io/?url=${encodeURIComponent(r.url)}&screenshot=true&meta=false&embed=screenshot.url" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<a href=\\'${r.url.replace(/'/g,"&#39;")}\\'target=\\'_blank\\' style=\\'display:flex;align-items:center;justify-content:center;width:100%;height:100%;text-decoration:none;color:#0078D4;font-size:13px;font-family:monospace;padding:16px;text-align:center;word-break:break-all;\\'>${r.url}</a>'"/>
-      </div>`;
+      media=`<div style="font-size:13px;color:#0078D4;margin-bottom:12px;word-break:break-all;">${r.url}</div>`;
     }
-    return`<div style="break-inside:avoid;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);margin-bottom:28px;">
-      <div style="padding:20px 24px 0;">${mediaSection}</div>
-      <div style="padding:16px 24px 24px;">
-        <div style="font-size:11px;color:#999;font-family:monospace;letter-spacing:0.1em;margin-bottom:10px;">REFERENCE ${i+1}</div>
-        ${r.likeBecause?`<div style="margin-bottom:10px;"><div style="font-size:10px;color:#999;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">I LIKES THIS BECAUSE</div><p style="font-size:14px;color:#333;line-height:1.6;margin:0;">${r.likeBecause}</p></div>`:""}
-        ${r.avoid?`<div><div style="font-size:10px;color:#FF6B6B;font-family:monospace;letter-spacing:0.08em;margin-bottom:4px;">DO NOT COPY</div><p style="font-size:13px;color:#666;line-height:1.6;margin:0;">${r.avoid}</p></div>`:""}
-        ${r.url?`<a href="${r.url}" target="_blank" style="display:inline-block;margin-top:12px;font-size:11px;color:#0078D4;font-family:monospace;word-break:break-all;">${r.url}</a>`:""}
-      </div>
+    return`<div style="border:1px solid #ddd;padding:20px;margin-bottom:16px;break-inside:avoid;">
+      <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:0.1em;margin-bottom:12px;">REFERENCE ${i+1}</div>
+      ${media}
+      ${r.likeBecause?`<div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:700;color:#555;margin-bottom:4px;">WHY I LIKE THIS</div><div style="font-size:14px;color:#111;line-height:1.6;">${r.likeBecause}</div></div>`:""}
+      ${r.avoid?`<div><div style="font-size:11px;font-weight:700;color:#c00;margin-bottom:4px;">DO NOT COPY</div><div style="font-size:14px;color:#333;line-height:1.6;">${r.avoid}</div></div>`:""}
     </div>`;
   }).join("");
 
-  const locked=(brief.lockedElements||[]).map(e=>{
-    const label=e==="Other"&&brief.lockedElementsOther?brief.lockedElementsOther:e;
-    return`<div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:8px;padding:10px 14px;font-size:13px;color:#cc4444;margin-bottom:6px;">🔒 ${label}</div>`;
-  }).join("");
-  const open=(brief.openForExploration||[]).map(e=>{
-    const label=e==="Other"&&brief.openForExplorationOther?brief.openForExplorationOther:e;
-    return`<div style="background:#f0fff4;border:1px solid #b2f5c8;border-radius:8px;padding:10px 14px;font-size:13px;color:#2d7d4f;margin-bottom:6px;">✦ ${label}</div>`;
-  }).join("");
-  const criteria=(brief.successCriteria||[]).map(s=>`<div style="background:#f5f5ff;border:1px solid #d0d0ff;border-radius:8px;padding:10px 14px;font-size:13px;color:#5555cc;margin-bottom:6px;">${s}</div>`).join("");
-  const assets=(brief.assetTypes||[]).map(a=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;font-family:monospace;">${a}</span>`).join(" ");
-  const objTags=objs.map(o=>`<span style="background:#D1FF9820;border:1px solid #D1FF9866;color:#2a6a00;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;">${o}</span>`).join(" ");
-  const aiEl=computeAIEligibility(brief);
-  const aiTierColors={full:"#4CAF82",partial:"#50A8FF",guarded:"#FFB300",blocked:"#A0A0A0"};
-  const aiTierTaglines={
-    full:"This brief is well-suited for AI-assisted production workflows.",
-    partial:"This brief is a good candidate for AI-assisted concepting and drafting.",
-    guarded:"AI can support drafting here, with designer oversight throughout.",
-    blocked:"This brief requires human-led design based on the conditions below."
-  };
-  const aiTierColor=aiTierColors[aiEl.level];
-  const aiSection=`<div style="background:#f8f8f8;border:1.5px solid #e0e0e0;border-left:4px solid ${aiTierColor};border-radius:12px;padding:24px;margin-bottom:24px;">
-    <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:8px;">AI ROUTING RECOMMENDATION</div>
-    <div style="font-size:18px;font-weight:800;color:${aiTierColor};margin-bottom:6px;">${aiEl.label}</div>
-    <div style="font-size:13px;color:#555;margin-bottom:${aiEl.tasks.length||aiEl.blocks.length?'16px':'0'};">${aiTierTaglines[aiEl.level]}</div>
-    ${aiEl.tasks.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;">${aiEl.tasks.map(t=>`<span style="background:${aiTierColor}22;border:1px solid ${aiTierColor}55;color:#1a1a1a;padding:4px 10px;border-radius:4px;font-size:11px;font-family:'DM Mono',monospace;">${t}</span>`).join("")}</div>`:""}
-    ${aiEl.blocks.length?`<div style="margin-top:12px;"><div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">WHY THIS BRIEF REQUIRES HUMAN DESIGN</div>${aiEl.blocks.map(b=>`<div style="font-size:13px;color:#555;margin-bottom:5px;">— ${b}</div>`).join("")}</div>`:""}
-    ${aiEl.reasons.length&&aiEl.level!=="blocked"?`<div style="margin-top:12px;font-size:11px;color:#aaa;font-family:'DM Mono',monospace;">Signals: ${aiEl.reasons.join(" · ")}</div>`:""}
+  const aiBlock=`<div style="border-left:3px solid #000;padding:14px 18px;margin-bottom:24px;break-inside:avoid;">
+    <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:0.1em;margin-bottom:6px;">AI ASSIST RECOMMENDATION</div>
+    <div style="font-size:16px;font-weight:700;color:#111;margin-bottom:6px;">${aiEl.label}</div>
+    ${aiEl.tasks.length?`<div style="font-size:13px;color:#555;margin-bottom:8px;">Suggested tasks: ${aiEl.tasks.join(" · ")}</div>`:""}
+    ${aiEl.blocks.length?`<div style="font-size:13px;color:#555;">${aiEl.blocks.map(b=>`<div style="margin-bottom:3px;">— ${b}</div>`).join("")}</div>`:""}
+    ${aiEl.reasons.length&&aiEl.level!=="blocked"?`<div style="font-size:12px;color:#999;margin-top:6px;">${aiEl.reasons.join(" · ")}</div>`:""}
   </div>`;
 
-  const html=`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  const html=`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
 <title>${brief.campaignName} — Brief</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'DM Sans',sans-serif;background:#F4F3EF;color:#1a1a1a;-webkit-print-color-adjust:exact;}.page{max-width:900px;margin:0 auto;padding:40px 32px 80px;}@media print{.no-print{display:none!important;}body{background:white;}}</style>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Georgia,serif;background:#fff;color:#111;font-size:14px;line-height:1.6;}
+  .page{max-width:800px;margin:0 auto;padding:48px 40px 80px;}
+  h1{font-size:28px;font-weight:700;line-height:1.2;margin-bottom:6px;}
+  h2{font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#555;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:16px;margin-top:32px;}
+  table{width:100%;border-collapse:collapse;}
+  .no-print{background:#111;padding:12px 32px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;}
+  @media print{.no-print{display:none!important;}.page{padding:32px 32px 60px;}}
+</style>
 </head><body>
-<div class="no-print" style="background:#0F0F0F;padding:12px 32px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10;">
-  <span style="color:#D1FF98;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;">${brief.campaignName}</span>
-  <button onclick="window.print()" style="background:#D1FF98;color:#0F0F0F;border:none;padding:8px 20px;border-radius:4px;cursor:pointer;font-weight:700;font-size:12px;font-family:'DM Mono',monospace;">DOWNLOAD PDF</button>
+<div class="no-print">
+  <span style="color:#D1FF98;font-size:12px;letter-spacing:0.1em;">${brief.campaignName}</span>
+  <button onclick="window.print()" style="background:#D1FF98;color:#111;border:none;padding:8px 20px;cursor:pointer;font-weight:700;font-size:12px;">DOWNLOAD PDF</button>
 </div>
 <div class="page">
-  <div style="background:linear-gradient(135deg,#0F0F0F 0%,#0d2340 100%);border-radius:24px;padding:56px 52px;margin-bottom:32px;position:relative;overflow:hidden;">
-    <div style="position:absolute;top:-60px;right:-60px;width:280px;height:280px;background:#D1FF9812;border-radius:50%;"></div>
-    <div style="position:relative;">
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">${objTags}</div>
-      <h1 style="font-size:clamp(32px,5vw,52px);font-weight:800;color:white;line-height:1.1;letter-spacing:-0.02em;margin-bottom:28px;">${brief.campaignName}</h1>
-      <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-left:4px solid #0078D4;border-radius:0 12px 12px 0;padding:20px 24px;">
-        <div style="font-size:10px;color:#50A8FF;font-family:'DM Mono',monospace;letter-spacing:0.14em;margin-bottom:8px;">THE CREATIVE REQUEST</div>
-        <p style="font-size:18px;color:rgba(255,255,255,0.92);line-height:1.7;font-weight:400;">${brief.problemStatement||""}</p>
-      </div>
-    </div>
+  <div style="border-bottom:2px solid #111;padding-bottom:20px;margin-bottom:28px;">
+    <div style="font-size:12px;font-weight:700;color:#999;letter-spacing:0.12em;margin-bottom:8px;">${brief.cbNumber?"CB"+String(brief.cbNumber).padStart(3,"0"):""}</div>
+    <h1>${brief.campaignName}</h1>
+    <div style="font-size:13px;color:#777;margin-top:6px;">Submitted by ${brief.requestorName||""}${brief.requestorTitle?" · "+brief.requestorTitle:""} · ${new Date(brief.submittedAt).toLocaleDateString()}</div>
+    ${brief.campaignType?`<div style="margin-top:10px;font-size:13px;font-weight:700;color:#555;">${brief.campaignType}</div>`:""}
   </div>
-  ${aiSection}
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
-    ${[["REQUESTOR",brief.requestorName,"#D1FF98"],["CAMPAIGN TYPE",brief.campaignType||"—","#0078D4"],["DECISION TYPE",brief.decisionType,"#FF8C00"]].map(([l,v,c])=>`<div style="background:white;border-radius:16px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06);"><div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">${l}</div><div style="font-size:15px;font-weight:700;color:${c};line-height:1.3;">${v||"—"}</div></div>`).join("")}
+
+  <div style="border-left:3px solid #000;padding:14px 18px;margin-bottom:28px;background:#fafafa;">
+    <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:0.1em;margin-bottom:8px;">THE CREATIVE REQUEST</div>
+    <div style="font-size:16px;line-height:1.7;color:#111;">${brief.problemStatement||""}</div>
   </div>
-  <div style="background:white;border-radius:20px;padding:36px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee;">AUDIENCE</div>
-    <div style="background:linear-gradient(135deg,#D1FF9815,#D1FF9830);border:1px solid #D1FF9866;border-radius:12px;padding:20px;">
-      <div style="font-size:10px;color:#2a6a00;font-family:'DM Mono',monospace;letter-spacing:0.1em;margin-bottom:8px;">PRIMARY</div>
-      <div style="font-size:18px;font-weight:700;color:#1a1a1a;">${brief.primaryAudience||"—"}</div>
-    </div>
-  </div>
-  <div style="background:white;border-radius:20px;padding:36px;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-    <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #eee;">MESSAGE</div>
-    ${(brief.messageTypes||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:8px;">${(brief.messageTypes||[]).map(t=>`<span style="background:#0078D415;border:1px solid #0078D455;color:#0078D4;padding:5px 14px;border-radius:20px;font-size:12px;">${t}</span>`).join("")}</div>`:""}
-  </div>
-  ${(brief.lockedElements?.length||brief.openForExploration?.length)?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
-    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #ffcccc;">LOCKED IN</div>${locked}
-    </div>
-    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#2d7d4f;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #b2f5c8;">OPEN TO EXPLORE</div>${open}
-    </div>
-  </div>`:""}
-  ${brief.mustAvoid?`<div style="background:#fff0f0;border:1px solid #ffcccc;border-radius:20px;padding:28px;margin-bottom:24px;"><div style="font-size:10px;color:#cc4444;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:12px;">MUST AVOID</div><p style="font-size:15px;color:#551a1a;line-height:1.7;">${brief.mustAvoid}</p></div>`:""}
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
-    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee;">SUCCESS CRITERIA</div>
-      ${criteria||"<p style='color:#ccc;font-size:13px;'>None specified</p>"}
-    </div>
-    <div style="background:white;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-      <div style="font-size:10px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee;">ASSET TYPES</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;">${assets||"<p style='color:#ccc;font-size:13px;'>None specified</p>"}</div>
-      ${brief.staticSizes?`<div style="margin-top:14px;font-size:12px;color:#666;">Static: ${brief.staticSizes}</div>`:""}
-      ${brief.videoDuration?`<div style="margin-top:6px;font-size:12px;color:#666;">Video: ${brief.videoDuration}${brief.videoPurpose?" · "+brief.videoPurpose:""}</div>`:""}
-    </div>
-  </div>
-  ${refs.length?`<div style="margin-bottom:24px;">
-    <div style="font-size:11px;color:#999;font-family:'DM Mono',monospace;letter-spacing:0.12em;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #eee;">REFERENCE EXAMPLES</div>
-    <div style="display:grid;grid-template-columns:repeat(${refs.length===1?"1":"2"},1fr);gap:20px;">${refCards}</div>
-  </div>`:""}
-  <div style="border-top:1px solid #ddd;padding-top:20px;display:flex;justify-content:space-between;align-items:center;">
-    <span style="font-size:12px;color:#999;font-family:'DM Mono',monospace;">Submitted by ${brief.requestorName||""} · ${new Date(brief.submittedAt).toLocaleDateString()}</span>
-    <span style="font-size:11px;color:#ccc;font-family:'DM Mono',monospace;">CREATIVE BRIEF TRANSLATOR (CBT)</span>
+
+  ${aiBlock}
+
+  <h2>Ownership</h2>
+  <table>${row("Requestor",brief.requestorName)}${row("Title",brief.requestorTitle)}${row("Email",brief.requestorEmail)}</table>
+
+  <h2>Objective</h2>
+  <table>${row("Business Objective",brief.businessObjective)}</table>
+
+  <h2>Scope</h2>
+  <table>${row("Decision Needed",brief.decisionType)}${row("Concepts Expected",brief.conceptCount)}</table>
+
+  <h2>Audience</h2>
+  <table>${row("Primary Audience",brief.primaryAudience)}${row("Audience Type",brief.audienceType)}</table>
+
+  <h2>Message</h2>
+  <table>${row("Message Type",brief.messageTypes)}${row("Source of Truth",brief.productTruthSource==="Other"?brief.productTruthOther:brief.productTruthSource)}</table>
+
+  <h2>Direction</h2>
+  <table>${row("Locked Elements",brief.lockedElements)}${row("Open for Exploration",brief.openForExploration)}</table>
+
+  <h2>Guardrails</h2>
+  <table>${row("Must Include",brief.finalMustInclude)}${row("Sensitive Constraints",normaliseMaybeArr(brief.sensitiveConstraints).filter(s=>s!=="None of the above").join(", ")||"None")}</table>
+
+  <h2>Deliverables</h2>
+  <table>
+    ${row("Asset Types",brief.assetTypes)}
+    ${row("Static Sizes",Array.isArray(brief.staticSizes)?brief.staticSizes.map(s=>s==="Other"&&brief.staticSizesOther?brief.staticSizesOther:s).join(", "):brief.staticSizes||"")}
+    ${brief.assetTypes?.includes("Video")?row("Video Duration",brief.videoDuration):""}
+    ${brief.assetTypes?.includes("Video")?row("Video Purpose",brief.videoPurpose):""}
+  </table>
+
+  ${refs.length?`<h2>References</h2>${refBlocks}`:""}
+
+  <div style="border-top:1px solid #ddd;padding-top:16px;margin-top:40px;display:flex;justify-content:space-between;font-size:12px;color:#999;">
+    <span>Creative Brief Translator (CBT)</span>
+    <span>Confidential — Internal Use Only</span>
   </div>
 </div></body></html>`;
   const blob=new Blob([html],{type:"text/html"});
@@ -973,19 +972,19 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
     </div>;
   };
 
-  const R=({label,val,fid})=>{
+  const R=({label,val})=>{
     if(!val||(Array.isArray(val)&&!val.length))return null;
-    return<div style={{marginBottom:"14px",paddingBottom:"14px",borderBottom:`1px solid ${C.bor}`}}>
-      <div style={{display:"grid",gridTemplateColumns:"190px 1fr",gap:"12px"}}>
-        <span style={{fontSize:"12px",color:C.g5,fontFamily:"monospace"}}>{label}</span>
-        <span style={{fontSize:"13px",color:C.g3,lineHeight:"1.65"}}>{Array.isArray(val)?val.join(", "):val}</span>
+    return<div style={{marginBottom:"16px",paddingBottom:"16px",borderBottom:`1px solid ${C.bor}`}}>
+      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:"16px"}}>
+        <span style={{fontSize:"13px",color:C.g5,fontFamily:"monospace",paddingTop:"2px"}}>{label}</span>
+        <span style={{fontSize:"15px",color:C.w,lineHeight:"1.65"}}>{Array.isArray(val)?val.join(", "):val}</span>
       </div>
     </div>;
   };
-  const S=({t,children})=><div style={{marginBottom:"32px"}}>
-    <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"14px"}}>
-      <div style={{width:"20px",height:"2px",background:C.lime}}/>
-      <span style={{fontSize:"11px",color:C.lime,fontFamily:"monospace",letterSpacing:"0.1em",textTransform:"uppercase"}}>{t}</span>
+  const S=({t,children})=><div style={{marginBottom:"36px"}}>
+    <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"16px"}}>
+      <div style={{width:"24px",height:"2px",background:C.lime}}/>
+      <span style={{fontSize:"13px",color:C.lime,fontFamily:"monospace",letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:"700"}}>{t}</span>
     </div>
     {children}
   </div>;
@@ -1008,7 +1007,7 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
           {brief.cbNumber&&<span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>{formatCB(brief.cbNumber)}</span>}
           <h1 style={{fontSize:"32px",fontWeight:"800",color:C.w,letterSpacing:"-0.01em"}}>{brief.campaignName}</h1>
         </div>
-        <p style={{color:C.g5,fontSize:"12px",fontFamily:"monospace"}}>Submitted by {brief.requestorName}{brief.requestorTitle?` · ${brief.requestorTitle}`:""} · {new Date(brief.submittedAt).toLocaleString()}</p>
+        <p style={{color:C.g3,fontSize:"14px",fontFamily:"monospace"}}>Submitted by {brief.requestorName}{brief.requestorTitle?` · ${brief.requestorTitle}`:""} · {new Date(brief.submittedAt).toLocaleString()}</p>
         {brief.campaignType&&<span style={{marginTop:"8px",display:"inline-block",background:`${C.blue}22`,border:`1px solid ${C.blue}55`,color:C.blue,padding:"3px 10px",borderRadius:"3px",fontSize:"11px",fontFamily:"monospace"}}>{brief.campaignType}</span>}
       </div>
       {isDesigner&&<AIBadge eligibility={aiEligibility}/>}
@@ -1047,10 +1046,8 @@ function BriefDetail({brief,onBack,onUpdate,isDesigner}){
       <S t="Direction"><R label="Locked" val={brief.lockedElements}/><R label="Open" val={brief.openForExploration}/></S>
       <S t="Guardrails">
         <R label="Must Include" val={brief.finalMustInclude}/>
-        <R label="Must Avoid" val={brief.mustAvoid}/>
         <R label="Sensitive Constraints" val={normaliseMaybeArr(brief.sensitiveConstraints).join(", ")||"None specified"}/>
       </S>
-      <S t="Success Criteria"><R label="Evaluated by" val={brief.successCriteria}/></S>
       <S t="Deliverables">
         <R label="Assets" val={brief.assetTypes}/>
         <R label="Static Sizes" val={brief.staticSizes}/>
@@ -1125,19 +1122,19 @@ function Dashboard({briefs,onNew,onView,onStatus,role}){
             <div style={{width:"7px",height:"7px",borderRadius:"50%",background:statusColor,flexShrink:0}}/>
             {/* Main content */}
             <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"baseline",gap:"10px",marginBottom:"3px"}}>
-                <span style={{fontSize:"14px",fontWeight:"700",color:C.w,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.campaignName}</span>
-                {b.campaignType&&<span style={{fontSize:"10px",color:C.blue,flexShrink:0}}>{b.campaignType}</span>}
+              <div style={{display:"flex",alignItems:"baseline",gap:"10px",marginBottom:"4px"}}>
+                <span style={{fontSize:"16px",fontWeight:"700",color:C.w,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.campaignName}</span>
+                {b.campaignType&&<span style={{fontSize:"12px",color:C.blue,flexShrink:0}}>{b.campaignType}</span>}
               </div>
-              <p style={{fontSize:"12px",color:C.g5,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.problemStatement}</p>
+              <p style={{fontSize:"13px",color:C.g3,margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.problemStatement}</p>
             </div>
             {/* Right side */}
             <div style={{display:"flex",alignItems:"center",gap:"16px",flexShrink:0}} onClick={e=>e.stopPropagation()}>
-              {b.assetTypes?.length>0&&<div style={{display:"flex",gap:"4px"}}>
-                {b.assetTypes.slice(0,3).map(a=><span key={a} style={{fontSize:"10px",color:C.g5,fontFamily:"monospace"}}>{a}</span>)}
+              {b.assetTypes?.length>0&&<div style={{display:"flex",gap:"6px"}}>
+                {b.assetTypes.slice(0,3).map(a=><span key={a} style={{fontSize:"12px",color:C.g3,fontFamily:"monospace"}}>{a}</span>)}
               </div>}
-              {isDesigner&&<span style={{fontSize:"10px",color:tierMeta.color,fontFamily:"monospace",width:"80px",textAlign:"right"}}>{aiEl.label.replace(" AI Assist","").replace("Human-Only Design","Human")}</span>}
-              <span style={{fontSize:"10px",color:C.g5,fontFamily:"monospace",width:"40px",textAlign:"right"}}>{new Date(b.submittedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
+              {isDesigner&&<span style={{fontSize:"12px",color:tierMeta.color,fontFamily:"monospace",width:"90px",textAlign:"right"}}>{aiEl.label.replace(" AI Assist","").replace("Human-Only Design","Human")}</span>}
+              <span style={{fontSize:"12px",color:C.g3,fontFamily:"monospace",width:"44px",textAlign:"right"}}>{new Date(b.submittedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
               <StatusToggle cur={b.status||"New Brief"} onChange={s=>onStatus(b.id,s)}/>
             </div>
           </div>;
