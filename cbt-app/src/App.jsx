@@ -396,7 +396,8 @@ function useWizard(){
   const isF=pos===0,isL=pos===secs.length-1;
   const next=()=>{if(!isL)setSec(secs[pos+1]);};
   const prev=()=>{if(!isF)setSec(secs[pos-1]);};
-  return{form,set,sec,cur,secs,prog,ok,next,prev,isF,isL};
+  const canContinue=ok();
+  return{form,set,sec,cur,secs,prog,ok,canContinue,next,prev,isF,isL};
 }
 
 const ul=(has)=>({width:"100%",border:"none",borderBottom:`2px solid ${has?C.blue:C.bor}`,outline:"none",background:"transparent",color:C.w,fontSize:"15px",fontFamily:"'DM Sans',sans-serif",padding:"10px 0",caretColor:C.blue});
@@ -770,7 +771,7 @@ function WizardView({onSubmit,briefCount,isDesigner}){
       if(e.key!=="Enter")return;
       const tag=(e.target||{}).tagName;
       if(tag==="TEXTAREA"||tag==="BUTTON")return;
-      if(!w.ok())return;
+      if(!w.canContinue)return;
       if(w.isL){submit();}else{go(w.next);}
     };
     window.addEventListener("keydown",handler);
@@ -828,12 +829,26 @@ function WizardView({onSubmit,briefCount,isDesigner}){
           </div>
         </div>
       </div>
-      <div style={{padding:"14px 48px 20px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",flexShrink:0}}>
-        <button onClick={()=>go(w.prev)} disabled={w.isF} style={{background:"transparent",border:`1.5px solid ${w.isF?C.bor:`${C.lime}55`}`,color:w.isF?C.g7:C.lime,padding:"12px 28px",cursor:w.isF?"not-allowed":"pointer",fontSize:"14px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
-        {w.isL
-          ?<button onClick={submit} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
-          :<button onClick={()=>go(w.next)} disabled={!w.ok()} style={{background:w.ok()?C.lime:C.g7,color:w.ok()?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.ok()?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
-        }
+      <div style={{padding:"14px 48px 20px",borderTop:`1px solid ${C.bor}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        {!w.isF
+          ?<button onClick={()=>go(w.prev)} style={{background:"transparent",border:`1.5px solid ${C.lime}55`,color:C.lime,padding:"12px 28px",cursor:"pointer",fontSize:"14px",fontWeight:"600",borderRadius:"3px"}}>Back</button>
+          :<div/>}
+        <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+          <span style={{fontSize:"11px",color:C.g5,fontFamily:"monospace"}}>
+            {w.cur.filter(f=>f.req).map(f=>{
+              const v=w.form[f.id];
+              const ok=f.t==="multi"?(Array.isArray(v)&&v.length>0):
+                f.t==="campaignType"?!!w.form.campaignType:
+                f.t==="sensitiveConstraints"?(normaliseMaybeArr(w.form.sensitiveConstraints).length>0):
+                f.t==="textarea"||f.t==="text"?!!v?.toString().trim():!!v;
+              return ok?null:<span key={f.id} style={{color:C.orange,marginRight:"8px"}}>{f.id}✗</span>;
+            })}
+          </span>
+          {w.isL
+            ?<button onClick={submit} disabled={!w.canContinue} style={{background:w.canContinue?C.lime:C.g7,color:w.canContinue?"#0F0F0F":C.g5,border:"none",padding:"13px 40px",fontSize:"15px",fontWeight:"700",cursor:w.canContinue?"pointer":"not-allowed",borderRadius:"3px"}}>Submit Brief</button>
+            :<button onClick={()=>go(w.next)} disabled={!w.canContinue} style={{background:w.canContinue?C.lime:C.g7,color:w.canContinue?"#0F0F0F":C.g5,border:"none",padding:"13px 36px",fontSize:"15px",fontWeight:"700",cursor:w.canContinue?"pointer":"not-allowed",borderRadius:"3px"}}>Continue</button>
+          }
+        </div>
       </div>
     </div>
   </div>);
